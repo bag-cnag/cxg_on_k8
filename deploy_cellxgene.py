@@ -40,8 +40,8 @@ PROXY_BUFFER_SIZE = '64k'
 
 # Cellxgene config
 CXG_APP_NAME = 'cellxgene'
-CXG_IMAGE = 'cellxgene:xsmall'
-AWS_CLI_IMAGE = 'aws_cli:xsmall'
+CXG_IMAGE = 'docker.vm2.dev/cellxgene:xsmall'
+AWS_CLI_IMAGE = 'docker.vm2.dev/aws_cli:xsmall'
 CXG_PORT = 5005
 
 # API info
@@ -215,6 +215,7 @@ def cellxgene_manifests(name: str):
                             "name": "data",
                             "mountPath": "/data"
                         }]
+                        "imagePullSecrets": [{"name": "docker-registry-secret"}]
                     }],
                     "containers": [{
                         "name": name,
@@ -240,6 +241,7 @@ def cellxgene_manifests(name: str):
                             s3.upload('/data/annotations.csv', '{USER_FILES_PATH}'); \
                             s3.upload('/data/gene_sets.csv', '{USER_FILES_PATH}')"
                         ]}}},
+                        "imagePullSecrets": [{"name": "docker-registry-secret"}]
                         # "startupProbe": {
                         #     "exec": {
                         #         "command": [

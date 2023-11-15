@@ -24,4 +24,4 @@ spec:
               memory: "256Mi"
               cpu: "500m"
       imagePullSecrets:
-        - name: regcred
+        - name: docker-registry-secret
