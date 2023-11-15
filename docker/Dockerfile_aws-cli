@@ -1,0 +1,43 @@
+ARG ALPINE_VERSION=3.18
+# Credits: https://stackoverflow.com/a/61268529
+FROM python:3.11.5-alpine${ALPINE_VERSION} AS builder
+
+
+ARG AWS_CLI_VERSION=2.13.26 # 2.11.11
+# libcrypto3 -> fixes CVE-2023-5363 (snyk)
+RUN apk add --no-cache git \
+                       unzip \
+                       groff \
+                       build-base \
+                       libffi-dev \
+                       cmake 
+                    #    libcrypto3==3.1.4-r0
+RUN git clone --single-branch --depth 1 -b ${AWS_CLI_VERSION} https://github.com/aws/aws-cli.git
+
+WORKDIR aws-cli
+RUN ./configure --with-install-type=portable-exe --with-download-deps
+RUN make
+RUN make install
+
+# reduce image size: remove autocomplete and examples
+RUN rm -rf \
+    /usr/local/lib/aws-cli/aws_completer \
+    /usr/local/lib/aws-cli/awscli/data/ac.index \
+    /usr/local/lib/aws-cli/awscli/examples
+RUN find /usr/local/lib/aws-cli/awscli/data -name completions-1*.json -delete
+RUN find /usr/local/lib/aws-cli/awscli/botocore/data -name examples-1.json -delete
+RUN (cd /usr/local/lib/aws-cli; for a in *.so*; do test -f /lib/$a && rm $a; done)
+
+# ------------------------------------------------------------------------------
+FROM alpine:${ALPINE_VERSION} AS final
+COPY --from=builder /usr/local/lib/aws-cli/ /usr/local/lib/aws-cli/
+RUN ln -s /usr/local/lib/aws-cli/aws /usr/local/bin/aws
+
+# ------------------------------------------------------------------------------
+FROM scratch
+
+# hacky squashy and entrypoints
+COPY --from=final / /
+
+ENTRYPOINT ["aws"]
+CMD ["--version"]

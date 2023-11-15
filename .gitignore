@@ -1,0 +1,6 @@
+*__pycache__*
+*.aws/*
+*venv/*
+*txt*
+.env
+manifests/secret-docker-registry.yaml

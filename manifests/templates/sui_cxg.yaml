@@ -1,0 +1,125 @@
+apiVersion: cnag.eu/v1
+kind: SingleUserInstance
+metadata:
+  labels:
+    app: cellxgene
+    instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+  name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+spec:
+  lifespan: 999
+  deployment:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: cellxgene
+        instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+      name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: cellxgene
+      template:
+        metadata:
+          labels:
+            app: cellxgene
+            instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+        spec:
+          containers:
+          - args:
+            - launch
+            - --verbose
+            - -p
+            - '5005'
+            - --host
+            - 0.0.0.0
+            - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad
+            - --annotations-file
+            - /data/annotations.csv
+            - --gene-sets-file
+            - /data/gene_sets.csv
+            envFrom:
+            - secretRef:
+                name: aws-cred-secret
+            image: cellxgene:xsmall
+            lifecycle:
+              preStop:
+                exec:
+                  command:
+                  - /usr/local/bin/python
+                  - -c
+                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv',
+                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv',
+                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/')
+            name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+            ports:
+            - containerPort: 5005
+            securityContext:
+              runAsUser: 1000
+            volumeMounts:
+            - mountPath: /data
+              name: data
+          initContainers:
+          - command:
+            - /bin/sh
+            - -c
+            - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/
+            envFrom:
+            - secretRef:
+                name: aws-cred-secret
+            image: aws_cli:xsmall
+            name: init-cellxgene
+            volumeMounts:
+            - mountPath: /data
+              name: data
+          volumes:
+          - emptyDir: {}
+            name: data
+  ingress:
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      annotations:
+        nginx.ingress.kubernetes.io/auth-response-headers: Authorization
+        nginx.ingress.kubernetes.io/auth-signin: https://minikube.local/oauth2/sign_in?rd=$escaped_request_uri
+        nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.ingress-nginx.svc.cluster.local:8091/oauth2/auth
+        nginx.ingress.kubernetes.io/configuration-snippet: 'rewrite ^/cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2$
+          /cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2/ redirect;'
+        nginx.ingress.kubernetes.io/proxy-buffer-size: 64k
+        nginx.ingress.kubernetes.io/rewrite-target: /$2
+        nginx.org/keepalive: '1'
+      labels:
+        app: cellxgene
+        instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+      name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+      namespace: cellxgene
+    spec:
+      ingressClassName: nginx
+      rules:
+      - host: minikube.local
+        http:
+          paths:
+          - backend:
+              service:
+                name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+                port:
+                  number: 38005
+            path: /cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2(/|$)(.*)
+            pathType: ImplementationSpecific
+  service:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: cellxgene
+        instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+      name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+    spec:
+      ports:
+      - port: 38005
+        protocol: TCP
+        targetPort: 5005
+      selector:
+        instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+      type: ClusterIP

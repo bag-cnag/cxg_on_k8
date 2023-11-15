@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: cellxgene
+    instance: cellxgene-uuid
+  name: cellxgene-uuid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cellxgene
+  template:
+    metadata:
+      labels:
+        app: cellxgene
+        instance: cellxgene-uuid
+    spec:
+      containers:
+      - args:
+        - launch
+        - --verbose
+        - -p
+        - '5005'
+        - --host
+        - 0.0.0.0
+        - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad
+        - --annotations-file
+        - /data/annotations.csv
+        - --gene-sets-file
+        - /data/gene_sets.csv
+        envFrom:
+        - secretRef:
+            name: aws-cred-secret
+        image: cellxgene:xsmall
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /usr/local/bin/python
+              - -c
+              - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', 's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv','s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/')
+        name: cellxgene-uuid
+        ports:
+        - containerPort: 5005
+        volumeMounts:
+        - mountPath: /data
+          name: data
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/
+        envFrom:
+        - secretRef:
+            name: aws-cred-secret
+        image: aws_cli:xsmall
+        name: init-cellxgene
+        volumeMounts:
+        - mountPath: /data
+          name: data
+      volumes:
+      - emptyDir: {}
+        name: data

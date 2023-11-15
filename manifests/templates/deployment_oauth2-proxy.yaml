@@ -1,0 +1,48 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      hostAliases: # TOCOMMENT
+      - ip: "192.168.49.1"
+        hostnames:
+        - "keycloak.local"
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+# --- Until here
+      containers:
+      - name: oauth2-proxy
+        image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+        ports:
+        - containerPort: 8091
+        args:
+        - --provider=keycloak-oidc
+        - --client-id=cellxgene
+        - --client-secret=RMd2UcSFjCkngPfwuMeTZvELYORoOHnk # TOCHANGE
+        - --cookie-secure=false
+        - --cookie-secret=dca70153c0ffd68a98696b6957b26e88
+        - --oidc-issuer-url=http://192.168.49.1:28080/realms/3TR # TOCHANGE
+        - --ssl-insecure-skip-verify=true
+        - --email-domain=*
+        - --oidc-extra-audience=cellxgene
+        - --pass-authorization-header=true
+        - --pass-access-token=true
+        - --set-authorization-header=true
+        - --set-xauthrequest=true
+        - --cookie-refresh=1m
+        - --cookie-expire=30m
+        - --http-address=0.0.0.0:8091
+        - --code-challenge-method=S256
+        - --upstream=file:///dev/null
+        - --cookie-domain=minikube.local # TOCHANGE
+        - --whitelist-domain=minikube.local # TOCHANGE

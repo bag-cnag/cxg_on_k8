@@ -1,0 +1,120 @@
+FROM python:3.11.5-alpine3.18 AS base
+
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV PYTHONPATH=/usr/lib/python3.11/site-packages/:/usr/local/lib/python3.11/site-packages/
+
+# ------------------------------------------------------------------------------
+FROM base AS builder
+
+ENV LLVM_CONFIG=/usr/lib/llvm14/bin/llvm-config
+
+# Build dependencies
+# libcrypto3 -> fixes CVE-2023-5363 (snyk)
+RUN apk update                && \
+    apk add bash              && \
+    apk add build-base        && \
+    apk add jq                && \
+    apk add git               && \
+    apk add hdf5-dev          && \
+    apk add py3-pkgconfig     && \
+    apk add python3-dev       && \
+    apk add nodejs            && \
+    apk add npm               && \
+    apk add llvm14-dev        && \
+    apk add cython            && \
+    apk add openblas-dev      
+    # apk add libcrypto3==3.1.4-r0
+
+# Python build dependencies
+RUN python3 -m pip install -U pip        && \
+    python3 -m pip install -U setuptools && \
+    python3 -m pip install -U wheel
+
+# Numpy install on alpine: https://stackoverflow.com/a/59704464
+# Numpy needs to be explicitly installed else numba build will fail during
+# installation of the requirements
+RUN ln -s locale.h /usr/include/xlocale.h && \
+    python3 -m pip install numpy==1.24.4
+
+# Needed so that numpy shared objects appear in the path
+RUN ln -s /usr/local/lib/python3.11/site-packages/numpy/core/include/numpy /usr/include/numpy
+
+# Fetching sources and applying fixes:
+#  - Upgrade: Flask, boto, s3fs, fssepec, numpy 
+#  - limit Werkzeug version as new update (3.0.0) breaks server
+#  - np.bool deprecated since numpy 1.20 -> replace by bool
+#  - Replace Flask.json.JSONEncoder by json.JSONEncoder in utils.py
+#  - Sets (s3) region name to false in default_config.py
+#  - Add --legacy-peer-deps and --openssl-legacy-provider flags to npm commands in makefiles
+#  - Extra Makefile entry to build a wheel
+WORKDIR /
+RUN git clone --single-branch --depth 1 https://github.com/chanzuckerberg/cellxgene.git
+WORKDIR /cellxgene
+RUN cp ./environment.default.json /environment.default.json
+RUN sed -i 's/np.bool/bool/g'                      server/data_common/data_adaptor.py    && \
+    echo "Werkzeug<=2.3.7"                     >>  server/requirements.txt               && \
+    sed -i '/^boto3>/ s/=.*/=1.27.47/'             server/requirements.txt               && \
+    sed -i '/^Flask>/ s/,.*$/,<3.0.0/'             server/requirements.txt               && \
+    sed -i '/^numpy>/ s/=.*$/=1.24.4/'             server/requirements.txt               && \
+    sed -i '/^fsspec>/ s/,.*$//'                   server/requirements.txt               && \
+    sed -i '/^s3fs==/ s/==.*$/==2023.9.0/'         server/requirements.txt               && \
+    sed -i '10s/^/from json import JSONEncoder\n/' server/common/utils/utils.py          && \
+    sed -i 's/json.JSONEncoder/JSONEncoder/g'      server/common/utils/utils.py          && \
+    sed -i '/region_name/ s/:.*$/: false/'         server/default_config.py              && \
+    sed -i 's/npm ci/npm ci --legacy-peer-deps/'   client/Makefile                       && \
+    sed -i '6s/^/WHEELBUILD := $(BUILDDIR)\/lib\/server\n/' Makefile                     && \
+    printf '\n\
+build_wheel: build                                                                       \n\
+	$(call copy_client_assets,$(CLIENTBUILD),$(WHEELBUILD))                              \n\
+pywheel:                                                                                 \n\
+	NODE_OPTIONS=--openssl-legacy-provider $(MAKE) build_wheel                           \n\
+	python setup.py bdist_wheel -d wheel\n' >> Makefile
+
+# Build the wheel and install to /inst
+RUN make pywheel && \
+    mkdir /inst  && \
+    pip install wheel/cellxgene*.whl -t /inst/
+
+# ------------------------------------------------------------------------------
+FROM base AS final
+
+# Get install result
+COPY --from=builder /inst /inst
+
+# List of static objects used by cellxgene, by strace (see readme)
+COPY --from=builder /usr/lib/libopenblas.so.3 /usr/lib/libopenblas.so.3
+COPY --from=builder /usr/lib/libgfortran.so.5 /usr/lib/libgfortran.so.5
+COPY --from=builder /usr/lib/libquadmath.so.0 /usr/lib/libquadmath.so.0
+COPY --from=builder /usr/lib/libgcc_s.so.1 /usr/lib/libgcc_s.so.1
+COPY --from=builder /usr/lib/libhdf5.so.310 /usr/lib/libhdf5.so.310
+COPY --from=builder /usr/lib/libsz.so.2 /usr/lib/libsz.so.2
+COPY --from=builder /usr/lib/libhdf5_hl.so.310 /usr/lib/libhdf5_hl.so.310
+COPY --from=builder /usr/lib/libLLVM-14.so /usr/lib/libLLVM-14.so
+COPY --from=builder /usr/lib/libstdc++.so.6 /usr/lib/libstdc++.so.6
+COPY --from=builder /usr/lib/libxml2.so.2 /usr/lib/libxml2.so.2
+
+# Dispatch artefacts
+RUN mv /inst/bin/* /usr/local/bin && rm -r /inst/bin/
+RUN mv /inst/* /usr/local/lib/python3.11/site-packages/
+RUN rm -rf /inst
+
+# Relink numpy
+RUN ln -s /usr/local/lib/python3.11/site-packages/numpy/core/include/numpy /usr/local/include/numpy
+
+# ------------------------------------------------------------------------------
+FROM scratch
+
+# Keep only the root: drops intermediate layers
+COPY --from=final / /
+
+# Add user: cellxgeneuser, -> gives ownership over /data 
+ARG UID=1000
+ARG GID=1000
+RUN mkdir /data && \
+    addgroup -g "${GID}" cellxgeneuser && \
+    adduser -D -H -u "${UID}" -G cellxgeneuser cellxgeneuser && \
+    chown -R cellxgeneuser:cellxgeneuser /data
+
+ENTRYPOINT ["cellxgene"]
+CMD ["launch", "--help"]
