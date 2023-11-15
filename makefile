@@ -9,6 +9,10 @@ build-docker-images:
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
 
+logs-sui-operator:
+	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl logs -f $$pod -n ${ns}
+
 attach-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- bin/sh
