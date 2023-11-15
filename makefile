@@ -12,13 +12,17 @@ delete-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml
 
 # when getting the docker images from a private registry
+encode-docker-config-json:
+	@echo "Creating docker config json"
+	base64 -w 0 ~/.docker/config.json
+
 apply-docker-registry-secret:
 	sed "s/\DOCKER_CONFIG_JSON/${DOCKER_CONFIG_JSON}/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
 	kubectl apply -f manifests/secret-docker-registry.yaml
 
 docker-registry-login:
 	@echo "Logging into Docker registry $(REGISTRY_URL)"
-	docker login $(REGISTRY_URL)
+	docker login https://$(REGISTRY_URL)/v2/
 
 tag-docker-images:
 	docker tag cellxgene:xsmall $(REGISTRY_URL)/cellxgene:xsmall
