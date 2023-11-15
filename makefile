@@ -1,4 +1,5 @@
 include .env
+ns = cellxgene
 
 build-docker-images:
 	docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
@@ -8,19 +9,15 @@ build-docker-images:
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
 
+nslookup-sui-operator:
+	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ${ns} -- nslookup metrics.ingress-nginx.svc.cluster.local
+
 del-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml
 
-dns-lookup-ingress-metric-server:
-	kubectl apply -f manifests/helpers/dns_lookup_ingress_metric_server.yaml
-	sleep 5
-	kubectl exec -it dns-lookup-test -- nslookup metrics.ingress-nginx.svc.cluster.local
-
-del-dns-lookup-ingress-metric-server:
-	kubectl delete -f manifests/helpers/dns_lookup_ingress_metric_server.yaml
 
 # when getting the docker images from a private registry
-
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
 encode-docker-config-json:
 	@echo "Creating docker config json"
