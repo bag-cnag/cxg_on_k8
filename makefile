@@ -13,7 +13,7 @@ delete-sui-operator:
 
 # when getting the docker images from a private registry
 apply-docker-registry-secret:
-	sed "s/\REGISTRY_CREDS/${REGISTRY_CREDS}/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
+	sed "s/\DOCKER_CONFIG_JSON/${DOCKER_CONFIG_JSON}/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
 	kubectl apply -f manifests/secret-docker-registry.yaml
 
 docker-registry-login:
@@ -31,4 +31,5 @@ push-docker-images:
 	docker push $(REGISTRY_URL)/sui_operator:test
 
 list-docker-images:
-	curl -L -X GET -H "Authorization: $(REGISTRY_CREDS)" $(REGISTRY_URL)/v2/_catalog
+	curl -L -u $(REGISTRY_USER):$(REGISTRY_PW) -X GET https://$(REGISTRY_URL)/v2/_catalog 
+
