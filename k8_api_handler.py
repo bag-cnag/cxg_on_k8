@@ -214,12 +214,6 @@ class K8ApiHandler():
         time.sleep(1)
         self.log(f"Ingress {name} setup.")
 
-    @staticmethod
-    def get_custom_resource_params(manifest: dict) -> (str, str, str):
-        group, version = manifest['apiVersion'].split('/')
-        plural = str(manifest['kind']).lower() + 's'
-        return group, version, plural
-
     def list_custom_object(self, manifest: dict, label_selector) -> []:
         group, version, plural = self.get_custom_resource_params(manifest)
         return self.CustomObjectsApi.list_namespaced_custom_object(
