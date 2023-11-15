@@ -10,7 +10,6 @@ FROM base AS builder
 ENV LLVM_CONFIG=/usr/lib/llvm14/bin/llvm-config
 
 # Build dependencies
-# libcrypto3 -> fixes CVE-2023-5363 (snyk)
 RUN apk update                && \
     apk add bash              && \
     apk add build-base        && \
@@ -23,8 +22,7 @@ RUN apk update                && \
     apk add npm               && \
     apk add llvm14-dev        && \
     apk add cython            && \
-    apk add openblas-dev      && \
-    apk add libcrypto3==3.1.4-r0
+    apk add openblas-dev
 
 # Python build dependencies
 RUN python3 -m pip install -U pip        && \

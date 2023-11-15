@@ -4,14 +4,13 @@ FROM python:3.11.5-alpine${ALPINE_VERSION} AS builder
 
 
 ARG AWS_CLI_VERSION=2.13.26 # 2.11.11
-# libcrypto3 -> fixes CVE-2023-5363 (snyk)
+
 RUN apk add --no-cache git \
                        unzip \
                        groff \
                        build-base \
                        libffi-dev \
-                       cmake \
-                       libcrypto3==3.1.4-r0
+                       cmake
 RUN git clone --single-branch --depth 1 -b ${AWS_CLI_VERSION} https://github.com/aws/aws-cli.git
 
 WORKDIR aws-cli

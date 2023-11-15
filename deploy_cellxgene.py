@@ -204,13 +204,19 @@ def cellxgene_manifests(name: str):
                     }
                 },
                 "spec": {
-                    "securityContext": {"runAsUser": 1000},
+                    "securityContext": {
+                        "runAsUser": 1000,
+                        "runAsGroup": 1000,
+                        "fsGroup": 1000,
+                    },
                     "initContainers": [{
                         "name": "init-cellxgene",
                         "image": AWS_CLI_IMAGE,
                         "command": [
-                            "/bin/sh", "-c",
-                            f"aws s3 sync {USER_FILES_PATH} /data/"
+                            "/bin/sh", "-c", (
+                                f"aws s3 sync {USER_FILES_PATH} /data && "
+                                f"touch /data/annotations.csv /data/gene_sets.csv"
+                            )
                         ],
                         "envFrom": [{"secretRef": {"name": "aws-cred-secret"}}],
                         "volumeMounts": [{

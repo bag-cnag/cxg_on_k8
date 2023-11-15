@@ -31,7 +31,7 @@ docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
 
 *sui-operator*
 ```bash
-docker build . -f docker/Dockerfile_operator -t sui_operator:test
+docker build . -f docker/Dockerfile_operator -t sui_operator:v1
 ```
 
 ##  Operator and SingleUserInstances

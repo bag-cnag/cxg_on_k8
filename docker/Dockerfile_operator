@@ -2,15 +2,20 @@ FROM python:3.11.5-alpine3.18 as base
 
 COPY ./operator /src
 
-# libcrypto3 -> fixes CVE-2023-5363 (snyk)
-RUN apk add --no-cache libcrypto3==3.1.4-r0
-
 RUN python3 -m pip install -U pip     && \
     python3 -m pip install kubernetes && \
     python3 -m pip install requests   && \
     python3 -m pip install kopf[uvloop]
-
+            
 FROM scratch
+
 COPY --from=base / /
 
-ENTRYPOINT [ "kopf", "run", "-n", "cellxgene", "/src/operator_single-user-instances.py", "--verbose"]
+# Add user: suioperator 
+ARG UID=1000
+ARG GID=1000
+RUN mkdir /data && \
+    addgroup -g "${GID}" suioperator && \
+    adduser -D -H -u "${UID}" -G suioperator suioperator
+
+ENTRYPOINT [ "kopf", "run", "--verbose", "-n", "cellxgene", "/src/operator_single-user-instances.py" ]

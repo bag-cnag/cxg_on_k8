@@ -15,10 +15,14 @@ spec:
       labels:
         application: sui-operator
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       serviceAccountName: sui-operator
       containers:
       - name: sui-operator
-        image: sui_operator:test
+        image: sui_operator:v1
         resources:
           limits:
             memory: "256Mi"

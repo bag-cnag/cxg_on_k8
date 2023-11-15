@@ -6,7 +6,7 @@ import kubernetes
 
 from datetime import datetime, timezone
 
-TICK = 30 # Number of seconds between refreshes
+TICK = 60 # Number of seconds between refreshes
 LATENCY_METRIC = 'nginx_ingress_controller_ingress_upstream_latency_seconds'
 
 @kopf.on.create('cnag.eu', 'v1', 'singleuserinstances')
