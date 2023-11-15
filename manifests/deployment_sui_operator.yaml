@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sui-operator
+  namespace: cellxgene
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      application: sui-operator
+  template:
+    metadata:
+      labels:
+        application: sui-operator
+    spec:
+      serviceAccountName: sui-operator
+      containers:
+      - name: sui-operator
+        image: sui_operator:test
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"

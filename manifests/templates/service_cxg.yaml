@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cellxgene
+  name: cellxgene-uuid
+spec:
+  ports:
+  - name: 5005-5005
+    port: 5005
+    protocol: TCP
+    targetPort: 5005
+  selector:
+    instance: cellxgene-uuid
+  type: ClusterIP

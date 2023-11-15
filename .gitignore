@@ -1,0 +1,5 @@
+*__pycache__*
+*.aws/*
+*venv/*
+*txt*
+manifests/secret*.yaml

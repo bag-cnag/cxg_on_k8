@@ -1,0 +1,5 @@
+FROM python:3.11.5-alpine3.18
+RUN apk update 
+RUN apk add curl
+RUN apk add wget
+RUN python -m pip install requests
