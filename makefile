@@ -9,9 +9,17 @@ build-docker-images:
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
 
+attach-sui-operator:
+	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ${ns} -- bin/sh
+
 nslookup-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- nslookup metrics.ingress-nginx.svc.cluster.local
+
+ping-ing-metrics-sever-from-sui-operator:
+	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ${ns} -- ping metrics.ingress-nginx.svc.cluster.local
 
 del-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml
