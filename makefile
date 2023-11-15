@@ -5,16 +5,18 @@ build-docker-images:
 	docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
 	docker build . -f docker/Dockerfile_operator -t sui_operator:test
 
-apply-sui-operator:
+deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
 
-delete-sui-operator:
+del-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml
 
 # when getting the docker images from a private registry
+
+#copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
 encode-docker-config-json:
 	@echo "Creating docker config json"
-	base64 -w 0 ~/.docker/config.json
+	base64 -w 0 ~/.docker/config.json 
 
 apply-docker-registry-secret:
 	sed "s/\DOCKER_CONFIG_JSON/${DOCKER_CONFIG_JSON}/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
