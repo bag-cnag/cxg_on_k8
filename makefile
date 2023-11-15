@@ -11,6 +11,14 @@ deploy-sui-operator:
 del-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml
 
+dns-lookup-ingress-metric-server:
+	kubectl apply -f manifests/helpers/dns_lookup_ingress_metric_server.yaml
+	sleep 5
+	kubectl exec -it dns-lookup-test -- nslookup metrics.ingress-nginx.svc.cluster.local
+
+del-dns-lookup-ingress-metric-server:
+	kubectl delete -f manifests/helpers/dns_lookup_ingress_metric_server.yaml
+
 # when getting the docker images from a private registry
 
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
