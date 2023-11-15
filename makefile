@@ -30,6 +30,11 @@ push-docker-images:
 	docker push $(REGISTRY_URL)/aws_cli:xsmall
 	docker push $(REGISTRY_URL)/sui_operator:test
 
+pull-docker-images:
+	docker pull $(REGISTRY_URL)/cellxgene:xsmall
+	docker pull $(REGISTRY_URL)/aws_cli:xsmall
+	docker pull $(REGISTRY_URL)/sui_operator:test
+
 list-docker-images:
 	curl -L -u $(REGISTRY_USER):$(REGISTRY_PW) -X GET https://$(REGISTRY_URL)/v2/_catalog 
 
