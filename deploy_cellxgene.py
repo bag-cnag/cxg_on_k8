@@ -7,6 +7,9 @@
 #     - ingress
 ##########################
 
+import os
+from dotenv import load_dotenv
+
 import uuid
 from kubernetes.client.exceptions import ApiException
 
@@ -14,19 +17,38 @@ from k8_api_handler import K8ApiHandler
 from yaml_to_py import py_to_yaml
 
 ## !! See README.md for info on how to set those variables
+#* set the variables in the .env file
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Host
-K8_IP = "192.168.49.2"
-K8_PORT = "8443"
-HOST_NAME = "minikube.local"
+K8_IP = os.getenv("K8_IP")
+K8_PORT = os.getenv("K8_PORT")
+HOST_NAME = os.getenv("HOST_NAME")
 
 # Kubernetes Authentication
-CLUSTER_ROOT_CERTIFICATE = "/home/ejodry/.minikube/ca.crt"
-SERVICE_ACCOUNT = 'omicsdm'
-ACCOUNT_TOKEN = ''
+CLUSTER_ROOT_CERTIFICATE = os.getenv("CLUSTER_ROOT_CERTIFICATE")
+SERVICE_ACCOUNT = os.getenv("SERVICE_ACCOUNT")
+ACCOUNT_TOKEN = os.getenv("ACCOUNT_TOKEN")
 
 # Oauth2 config
-KEYCLOAK_ENDPOINT = 'https://sso.cnag.crg.dev/auth'
-KEYCLOAK_REALM = '3TR'
+KEYCLOAK_ENDPOINT = os.getenv("KEYCLOAK_ENDPOINT")
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
+
+# # Host
+# K8_IP = "192.168.49.2"
+# K8_PORT = "8443"
+# HOST_NAME = "minikube.local"
+
+# # Kubernetes Authentication
+# CLUSTER_ROOT_CERTIFICATE = "/home/ejodry/.minikube/ca.crt"
+# SERVICE_ACCOUNT = 'omicsdm'
+# ACCOUNT_TOKEN = ''
+
+# # # Oauth2 config
+# KEYCLOAK_ENDPOINT = 'https://sso.cnag.crg.dev/auth'
+# KEYCLOAK_REALM = '3TR'
 
 OAUTH2_IMAGE = 'quay.io/oauth2-proxy/oauth2-proxy:v7.5.1'
 OAUTH2_APP_NAME = 'oauth2-proxy'
@@ -214,7 +236,7 @@ def cellxgene_manifests(name: str):
                         "volumeMounts": [{
                             "name": "data",
                             "mountPath": "/data"
-                        }]
+                        }],
                         "imagePullSecrets": [{"name": "docker-registry-secret"}]
                     }],
                     "containers": [{

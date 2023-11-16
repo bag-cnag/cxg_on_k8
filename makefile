@@ -1,10 +1,24 @@
 include .env
 ns = cellxgene
 
+venv:
+	python3 -m venv venv
+	. venv/bin/activate && pip install --upgrade pip && \
+	pip install -r requirements.txt
+
+run:
+	. venv/bin/activate && python3 deploy_cellxgene.py
+
 build-docker-images:
 	docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
 	docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
 	docker build . -f docker/Dockerfile_operator -t sui_operator:test
+
+apply-aws-secrets:
+	sed "s/\S3_ENDPOINT_DOMAIN/${AWS_ENDPOINT_DOMAIN}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
+	sed "s/\S3_ACCESS_KEY_ID/${AWS_ACCESS_KEY_ID}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
+	sed "s/\AWS_SECRET_ACCESS_KEY/${AWS_SECRET_ACCESS_KEY}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
+	# kubectl apply -f manifests/secret_aws-cred.yaml
 
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
