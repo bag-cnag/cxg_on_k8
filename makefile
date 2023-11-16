@@ -1,6 +1,11 @@
 include .env
 ns = cellxgene
 
+# URL_encoded=$(echo ${AWS_ENDPOINT_URL} | base64 ) 
+# ACCESS_KEY_ID_encoded=$(echo ${AWS_ACCESS_KEY_ID} | base64 ) 
+# SECRET_ACCESS_KEY_encoded=$(echo ${AWS_SECRET_ACCESS_KEY} | base64 ) 
+
+.PHONY: venv
 venv:
 	python3 -m venv venv
 	. venv/bin/activate && pip install --upgrade pip && \
@@ -15,10 +20,12 @@ build-docker-images:
 	docker build . -f docker/Dockerfile_operator -t sui_operator:test
 
 apply-aws-secrets:
-	sed "s/\S3_ENDPOINT_DOMAIN/${AWS_ENDPOINT_DOMAIN}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
-	sed "s/\S3_ACCESS_KEY_ID/${AWS_ACCESS_KEY_ID}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
-	sed "s/\AWS_SECRET_ACCESS_KEY/${AWS_SECRET_ACCESS_KEY}/" manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
-	# kubectl apply -f manifests/secret_aws-cred.yaml
+	@echo "Populate	the AWS secrets in the secret_aws-cred.yaml file"
+	sed -e "s/\S3_ENDPOINT_URL/$$(echo ${AWS_ENDPOINT_URL} | base64 )/" \
+	   	-e "s/\S3_ACCESS_KEY_ID/$$(echo ${AWS_ACCESS_KEY_ID} | base64 ) /" \
+	   	-e "s/\S3_SECRET_ACCESS_KEY/$$(echo ${AWS_SECRET_ACCESS_KEY} | base64 ) /" \
+	   	manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
+	kubectl apply -f manifests/secret_aws-cred.yaml
 
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
