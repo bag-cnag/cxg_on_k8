@@ -156,20 +156,7 @@ class K8ApiHandler():
             plural=plural,
             namespace=self.namespace
         )
-
-        # Waiting for the instance to be up
-        # while True:
-        #     resp = self.CustomObjectsApi.get_namespaced_custom_object_status(
-        #         name=name,
-        #         group=group,
-        #         version=version,
-        #         plural=plural,
-        #         namespace=self.namespace
-        #     )
-        #     if resp.available_replicas != nreplicas:
-        #         break
-        #     time.sleep(1)
-
+        self.log(f"Response: ", resp)
         self.log(f"Custom object: {manifest['kind']} with name: {name} up.")
 
     def create_service(self, manifest: dict) -> None:

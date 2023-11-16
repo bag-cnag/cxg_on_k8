@@ -1,10 +1,6 @@
 include .env
 ns = cellxgene
 
-# URL_encoded=$(echo ${AWS_ENDPOINT_URL} | base64 ) 
-# ACCESS_KEY_ID_encoded=$(echo ${AWS_ACCESS_KEY_ID} | base64 ) 
-# SECRET_ACCESS_KEY_encoded=$(echo ${AWS_SECRET_ACCESS_KEY} | base64 ) 
-
 .PHONY: venv
 venv:
 	python3 -m venv venv
@@ -42,9 +38,9 @@ nslookup-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- nslookup metrics.ingress-nginx.svc.cluster.local
 
-ping-ing-metrics-sever-from-sui-operator:
+wget-ing-metrics-sever-from-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
-	kubectl exec -it $$pod -n ${ns} -- ping metrics.ingress-nginx.svc.cluster.local
+	kubectl exec -it $$pod -n ${ns} -- wget metrics.ingress-nginx.svc.cluster.local/metric
 
 del-sui-operator:
 	kubectl delete -f manifests/deployment_sui_operator.yaml

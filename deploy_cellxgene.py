@@ -54,7 +54,7 @@ OAUTH2_IMAGE = 'quay.io/oauth2-proxy/oauth2-proxy:v7.5.1'
 OAUTH2_APP_NAME = 'oauth2-proxy'
 
 OAUTH2_CLIENT_ID = 'cellxgene'
-OAUTH2_CLIENT_SECRET = ''
+OAUTH2_CLIENT_SECRET = os.getenv("OAUTH2_CLIENT_SECRET")
 OAUTH2_NAMESPACE = 'ingress-nginx'
 
 OAUTH2_PORT = 8091
@@ -236,8 +236,7 @@ def cellxgene_manifests(name: str):
                         "volumeMounts": [{
                             "name": "data",
                             "mountPath": "/data"
-                        }],
-                        "imagePullSecrets": [{"name": "docker-registry-secret"}]
+                        }]
                     }],
                     "containers": [{
                         "name": name,
@@ -262,8 +261,7 @@ def cellxgene_manifests(name: str):
                             f"from fsspec import filesystem as fs; s3 = fs('s3');    \
                             s3.upload('/data/annotations.csv', '{USER_FILES_PATH}'); \
                             s3.upload('/data/gene_sets.csv', '{USER_FILES_PATH}')"
-                        ]}}},
-                        "imagePullSecrets": [{"name": "docker-registry-secret"}]
+                        ]}}}
                         # "startupProbe": {
                         #     "exec": {
                         #         "command": [
@@ -283,6 +281,7 @@ def cellxgene_manifests(name: str):
                         #     "periodSeconds": 10
                         # }
                     }],
+                    "imagePullSecrets": [{"name": "docker-registry-secret"}],
                     "volumes": [{
                         "name": "data",
                         "emptyDir": {}
@@ -374,9 +373,12 @@ def deploy_oauth2proxy(kah: K8ApiHandler):
         print("No oauth2-proxy instance found in the cluster: creating it")
 
         deployment, service, ingress = oauth2proxy_manifests(name=name)
-        
+
+        print ("Creating deployment...")
         kah.create_deployment(deployment)
+        print("Creating service...")
         kah.create_service(service)
+        print("Creating ingress...")
         kah.create_ingress(ingress)
 
         print("oauth2-proxy deployed.")

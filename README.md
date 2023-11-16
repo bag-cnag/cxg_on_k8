@@ -47,7 +47,7 @@ To deploy:
 kubectl apply -f manifests/crd_single-user-instance.yaml
 kubectl apply -f manifests/serviceaccount_sui-operator.yaml
 kubectl apply -f manifests/service_ingress-nginx-controller_metrics.yaml
-kubectl apply -f manifests/deployment_sui-operator.yaml
+kubectl apply -f manifests/deployment_sui_operator.yaml
 ```
 
 You may then check that the operator successfuly launched by querying the status. E.g.
