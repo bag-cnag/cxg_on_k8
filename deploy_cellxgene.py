@@ -26,6 +26,7 @@ load_dotenv()
 K8_IP = os.getenv("K8_IP")
 K8_PORT = os.getenv("K8_PORT")
 HOST_NAME = os.getenv("HOST_NAME")
+ING_CONTROLER_NODE_PORT = os.getenv("ING_CONTROLER_NODE_PORT")
 
 # Kubernetes Authentication
 CLUSTER_ROOT_CERTIFICATE = os.getenv("CLUSTER_ROOT_CERTIFICATE")
@@ -35,20 +36,6 @@ ACCOUNT_TOKEN = os.getenv("ACCOUNT_TOKEN")
 # Oauth2 config
 KEYCLOAK_ENDPOINT = os.getenv("KEYCLOAK_ENDPOINT")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
-
-# # Host
-# K8_IP = "192.168.49.2"
-# K8_PORT = "8443"
-# HOST_NAME = "minikube.local"
-
-# # Kubernetes Authentication
-# CLUSTER_ROOT_CERTIFICATE = "/home/ejodry/.minikube/ca.crt"
-# SERVICE_ACCOUNT = 'omicsdm'
-# ACCOUNT_TOKEN = ''
-
-# # # Oauth2 config
-# KEYCLOAK_ENDPOINT = 'https://sso.cnag.crg.dev/auth'
-# KEYCLOAK_REALM = '3TR'
 
 OAUTH2_IMAGE = 'quay.io/oauth2-proxy/oauth2-proxy:v7.5.1'
 OAUTH2_APP_NAME = 'oauth2-proxy'
@@ -88,6 +75,8 @@ def oauth2proxy_manifests(name: str):
             "template": {
                 "metadata": {"labels": {"app": name}},
                 "spec": {
+                    # "hostNetwork": True,
+                    # "dnsPolicy": "ClusterFirst",
                     "containers": [{
                         "name": name,
                         "image": OAUTH2_IMAGE,
@@ -147,6 +136,7 @@ def oauth2proxy_manifests(name: str):
             "name": name,
         },
         "spec": {
+            # "ingressClassName": "nginx",
             "rules": [{
                 "host": HOST_NAME,
                 "http": {
@@ -229,8 +219,10 @@ def cellxgene_manifests(name: str):
                         "name": "init-cellxgene",
                         "image": AWS_CLI_IMAGE,
                         "command": [
-                            "/bin/sh", "-c",
-                            f"aws s3 sync {USER_FILES_PATH} /data/"
+                            "/bin/sh", "-c", (
+                                f"aws s3 sync {USER_FILES_PATH} /data && "
+                                f"touch /data/annotations.csv /data/gene_sets.csv"
+                            )
                         ],
                         "envFrom": [{"secretRef": {"name": "aws-cred-secret"}}],
                         "volumeMounts": [{
@@ -321,10 +313,10 @@ def cellxgene_manifests(name: str):
             },
             "annotations": {
                 "nginx.ingress.kubernetes.io/rewrite-target": "/$2",
-                "nginx.ingress.kubernetes.io/configuration-snippet": f"rewrite ^/{name}$ /{name}/ redirect;\n",
+                "nginx.ingress.kubernetes.io/configuration-snippet": f"rewrite ^/{name}$ /{name}/ redirect;\n", #enforce trailing slash
                 "nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
                 "nginx.ingress.kubernetes.io/auth-url": f"http://{OAUTH2_APP_NAME}.{OAUTH2_NAMESPACE}.svc.cluster.local:{OAUTH2_PORT}/oauth2/auth",
-                "nginx.ingress.kubernetes.io/auth-signin": f"https://{HOST_NAME}/oauth2/sign_in?rd=$escaped_request_uri",
+                "nginx.ingress.kubernetes.io/auth-signin": f"http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/oauth2/sign_in?rd=$escaped_request_uri",
                 "nginx.ingress.kubernetes.io/proxy-buffer-size": PROXY_BUFFER_SIZE,
                 "nginx.org/keepalive": "1"
                 # "nginx.org/max-conns": "1"
@@ -393,7 +385,7 @@ def deploy_cellxgene(kah: K8ApiHandler):
     kah.create_custom_resource(cellxgene_manifest(name))
 
     print("Done.")
-    print(f"The instance is now accessible at: http://{HOST_NAME}/{name}/")
+    print(f"The instance is now accessible at: http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/{name}/")
 
 def main():
     kah = K8ApiHandler(

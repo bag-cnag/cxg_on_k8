@@ -17,11 +17,14 @@ build-docker-images:
 
 apply-aws-secrets:
 	@echo "Populate	the AWS secrets in the secret_aws-cred.yaml file"
-	sed -e "s/\S3_ENDPOINT_URL/$$(echo ${AWS_ENDPOINT_URL} | base64 )/" \
-	   	-e "s/\S3_ACCESS_KEY_ID/$$(echo ${AWS_ACCESS_KEY_ID} | base64 ) /" \
-	   	-e "s/\S3_SECRET_ACCESS_KEY/$$(echo ${AWS_SECRET_ACCESS_KEY} | base64 ) /" \
-	   	manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
+	sed -e "s/\S3_ENDPOINT_URL/$$(echo -n ${AWS_ENDPOINT_URL} | base64 )/" \
+	   	-e "s/\S3_ACCESS_KEY_ID/$$(echo -n ${AWS_ACCESS_KEY_ID} | base64 ) /" \
+	   	-e "s/\S3_SECRET_ACCESS_KEY/$$(echo -n ${AWS_SECRET_ACCESS_KEY} | base64 ) /" \
+		manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
 	kubectl apply -f manifests/secret_aws-cred.yaml
+
+del-aws-secrets:
+	kubectl delete -f manifests/secret_aws-cred.yaml
 
 deploy-sui-operator:
 	kubectl apply -f manifests/deployment_sui_operator.yaml
@@ -34,17 +37,51 @@ attach-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- bin/sh
 
-nslookup-sui-operator:
-	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
-	kubectl exec -it $$pod -n ${ns} -- nslookup metrics.ingress-nginx.svc.cluster.local
+deploy-ing-nginx-controller:
+	/usr/local/bin/helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+	/usr/local/bin/helm repo update
+	/usr/local/bin/helm install ingress-nginx ingress-nginx/ingress-nginx --set controller.service.type=NodePort --set controller.allowSnippetAnnotations=true -n ingress-nginx
 
+logs-ing-nginx-controller:
+	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl logs -f $$pod -n ingress-nginx
+
+endpoints-ing-nginx-controller:
+	ingress_pod_name=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}') && \
+	node_name=$$(kubectl get pod $$ingress_pod_name -n ingress-nginx -o jsonpath='{.spec.nodeName}') && \
+	node_port_http=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[0].nodePort}') && \
+	node_port_https=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[1].nodePort}') && \
+	echo "" && \
+	echo "Ingress Nginx Controller endpoints" && \
+	echo "http://$$node_name:$$node_port_http" && \
+	echo "https://$$node_name:$$node_port_https"
+
+del-ing-nginx-controller:
+	/usr/local/bin/helm uninstall ingress-nginx -n ingress-nginx
+
+# below should return connection refused and not timeout if timeout check the status of firewalld on the worker nodes
+# port 10254 should be open
 wget-ing-metrics-sever-from-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
-	kubectl exec -it $$pod -n ${ns} -- wget metrics.ingress-nginx.svc.cluster.local/metric
+	kubectl exec -it $$pod -n ${ns} -- wget metrics.ingress-nginx.svc.cluster.local/metrics
 
-del-sui-operator:
-	kubectl delete -f manifests/deployment_sui_operator.yaml
+running-suis:
+	kubectl get sui -n ${ns}
 
+ings:
+	kubectl get ing -n ${ns}
+
+del-suis:
+	kubectl delete sui -n ${ns} --all
+
+curl-cxg:
+	instance=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.labels.instance}') && \
+	echo $$instance && \
+	echo "curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/" && \
+	curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/ --verbose
+
+mkcert:
+	/usr/local/bin/mkcert -cert-file ./certs/cxgk8.cnag.dev.pem -key-file ./certs/cxgk8.cnag.dev-key.pem cxgk8.cnag.dev
 
 # when getting the docker images from a private registry
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
