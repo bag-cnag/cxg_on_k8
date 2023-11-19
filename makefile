@@ -105,32 +105,6 @@ curl-cxg:
 	echo "curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/" && \
 	curl -kL http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/ --verbose
 
-mkcert:
-	/usr/local/bin/mkcert -cert-file ./certs/cxgk8.cnag.dev.pem -key-file ./certs/cxgk8.cnag.dev-key.pem cxgk8.cnag.dev
-
-
-apply-cert:
-	kubectl -n cert-manager create secret tls mkcert --cert ./certs/cxgk8.cnag.dev.pem --key ./certs/cxgk8.cnag.dev-key.pem 
-	# kubectl create secret tls tls-secret --cert=./certs/cxgk8.cnag.dev.pem --key=./certs/cxgk8.cnag.dev-key.pem -n cert-manager
-
-del-cert:
-	kubectl delete secret tls-secret -n cert-manager
-
-show-cert:
-	kubectl get secret tls-secret -n cert-manager -o yaml
-
-install-cert-manager:
-	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.13.2/cert-manager.yaml
-
-deploy-cert-manager-issuer:
-	kubectl apply -f manifests/cert-issuer.yaml
-
-del-cert-manager-issuer:
-	kubectl delete -f manifests/cert-issuer.yaml
-
-get-cert-manager-issuer:
-	kubectl get issuers ca-issuer -n cert-manager -o wide
-
 # when getting the docker images from a private registry
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
 encode-docker-config-json:
