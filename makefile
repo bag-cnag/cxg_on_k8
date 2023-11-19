@@ -67,8 +67,8 @@ endpoints-ing-nginx-controller:
 update-env-file:
 	@echo "Update the .env file with the ingress controller node port"
 	node_port=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[0].nodePort}') && \
-	echo "ING_CONTROLER_NODE_PORT=$$node_port" && \
-	sed -i -e "s/ING_CONTROLER_NODE_PORT=.*/ING_CONTROLER_NODE_PORT=$$node_port/" .env
+	echo "ING_CONTROLLER_NODE_PORT=$$node_port" && \
+	sed -i -e "s/ING_CONTROLLER_NODE_PORT=.*/ING_CONTROLLER_NODE_PORT=$$node_port/" .env
 
 	@echo "Update the .env file with the omicsdm service account token"
 	token=$$(kubectl get secret omicsdm-token -o jsonpath='{.data.token}' | base64 --decode) && \
@@ -109,8 +109,8 @@ logs-oauth2-proxy:
 curl-cxg:
 	instance=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.labels.instance}') && \
 	echo $$instance && \
-	echo "curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/" && \
-	curl -kL http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/ --verbose
+	echo "curl -L http://${HOST_NAME}:${ING_CONTROLLER_NODE_PORT}/$$instance/" && \
+	curl -kL http://${HOST_NAME}:${ING_CONTROLLER_NODE_PORT}/$$instance/ --verbose
 
 # when getting the docker images from a private registry
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
