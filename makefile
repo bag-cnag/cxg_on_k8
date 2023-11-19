@@ -11,9 +11,15 @@ run:
 	. venv/bin/activate && python3 deploy_cellxgene.py
 
 build-docker-images:
-	docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
-	docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
-	docker build . -f docker/Dockerfile_operator -t sui_operator:test
+	docker build . -f docker/Dockerfile_cellxgene -t ${REGISTRY_URL}/cellxgene:xsmall
+	docker build . -f docker/Dockerfile_aws-cli -t ${REGISTRY_URL}/aws_cli:xsmall
+	docker build . -f docker/Dockerfile_operator -t ${REGISTRY_URL}/sui_operator:test
+
+apply-manifests:
+	kubectl apply -f manifests/crd_single-user-instance.yaml
+	kubectl apply -f manifests/serviceaccount_sui-operator.yaml
+	kubectl apply -f manifests/service_ingress-nginx-controller_metrics.yaml
+	kubectl apply -f manifests/deployment_sui_operator.yaml
 
 apply-aws-secrets:
 	@echo "Populate	the AWS secrets in the secret_aws-cred.yaml file"
@@ -58,6 +64,17 @@ endpoints-ing-nginx-controller:
 	echo "http://$$node_internal_ip:$$node_port_http" && \
 	echo "https://$$node_internal_ip:$$node_port_https"
 
+update-env-file:
+	@echo "Update the .env file with the ingress controller node port"
+	node_port=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[0].nodePort}') && \
+	echo "ING_CONTROLER_NODE_PORT=$$node_port" && \
+	sed -i -e "s/ING_CONTROLER_NODE_PORT=.*/ING_CONTROLER_NODE_PORT=$$node_port/" .env
+
+	@echo "Update the .env file with the omicsdm service account token"
+	token=$$(kubectl get secret omicsdm-token -o jsonpath='{.data.token}' | base64 --decode) && \
+	echo "token: $$token" && \
+	sed -i -e "s/ACCOUNT_TOKEN=.*/ACCOUNT_TOKEN=$$token/" .env
+
 del-ing-nginx-controller:
 	/usr/local/bin/helm uninstall ingress-nginx -n ingress-nginx
 
@@ -81,11 +98,6 @@ del-oauth2-proxy:
 	kubectl delete svc/oauth2-proxy -n ingress-nginx; \
 	kubectl delete ing/oauth2-proxy -n ingress-nginx
 
-
-attach-oauth2-proxy:
-	pod=$$(kubectl get pods -n ingress-nginx -l app=oauth2-proxy -o jsonpath='{.items[0].metadata.name}') && \
-	kubectl exec -it $$pod -n ingress-nginx -- bin/sh
-
 try-oauth2-proxy:
 	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ingress-nginx -- wget http://${OAUTH2_APP_NAME}.${OAUTH2_NAMESPACE}.svc.cluster.local:${OAUTH2_PORT}/oauth2/auth
@@ -102,32 +114,21 @@ curl-cxg:
 
 # when getting the docker images from a private registry
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
-encode-docker-config-json:
-	@echo "Creating docker config json"
-	base64 -w 0 ~/.docker/config.json 
 
 apply-docker-registry-secret:
-	sed "s/\DOCKER_CONFIG_JSON/${DOCKER_CONFIG_JSON}/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
+	b64_cfg=$$(cat ~/.docker/config.json | base64 -w 0) && \
+	echo $$b64_cfg && \
+	sed "s/\DOCKER_CONFIG_JSON/$$b64_cfg/" manifests/templates/secret-docker-registry.yaml > manifests/secret-docker-registry.yaml
 	kubectl apply -f manifests/secret-docker-registry.yaml
 
 docker-registry-login:
 	@echo "Logging into Docker registry $(REGISTRY_URL)"
 	docker login https://$(REGISTRY_URL)/v2/
 
-tag-docker-images:
-	docker tag cellxgene:xsmall $(REGISTRY_URL)/cellxgene:xsmall
-	docker tag aws_cli:xsmall $(REGISTRY_URL)/aws_cli:xsmall
-	docker tag sui_operator:test $(REGISTRY_URL)/sui_operator:test
-
 push-docker-images:
 	docker push $(REGISTRY_URL)/cellxgene:xsmall
 	docker push $(REGISTRY_URL)/aws_cli:xsmall
 	docker push $(REGISTRY_URL)/sui_operator:test
-
-pull-docker-images:
-	docker pull $(REGISTRY_URL)/cellxgene:xsmall
-	docker pull $(REGISTRY_URL)/aws_cli:xsmall
-	docker pull $(REGISTRY_URL)/sui_operator:test
 
 list-docker-images:
 	curl -L -u $(REGISTRY_USER):$(REGISTRY_PW) -X GET https://$(REGISTRY_URL)/v2/_catalog 
