@@ -77,8 +77,10 @@ del-suis:
 	kubectl delete sui -n ${ns} --all
 
 del-oauth2-proxy:
-	kubectl delete deployment/oauth2-proxy -n ingress-nginx
-	kubectl delete svc/oauth2-proxy -n ingress-nginx
+	kubectl delete deployment/oauth2-proxy -n ingress-nginx; \
+	kubectl delete svc/oauth2-proxy -n ingress-nginx; \
+	kubectl delete ing/oauth2-proxy -n ingress-nginx
+
 
 attach-oauth2-proxy:
 	pod=$$(kubectl get pods -n ingress-nginx -l app=oauth2-proxy -o jsonpath='{.items[0].metadata.name}') && \
@@ -87,13 +89,6 @@ attach-oauth2-proxy:
 try-oauth2-proxy:
 	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ingress-nginx -- wget http://${OAUTH2_APP_NAME}.${OAUTH2_NAMESPACE}.svc.cluster.local:${OAUTH2_PORT}/oauth2/auth
-
-test-auth:
-	url=http://${OAUTH2_APP_NAME}.${OAUTH2_NAMESPACE}.svc.cluster.local:${OAUTH2_PORT}/oauth2/auth && \
-	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
-	kubectl exec -it $$pod -n ingress-nginx -- \
-	wget --header="Cookie: _oauth2_proxy=YOUR_COOKIE_HERE" --no-check-certificate $$url
-
 
 logs-oauth2-proxy:
 	pod=$$(kubectl get pods -n ingress-nginx -l app=oauth2-proxy -o jsonpath='{.items[0].metadata.name}') && \

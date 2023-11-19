@@ -4,4 +4,5 @@ venv
 .env
 manifests/secret-docker-registry.yaml
 manifests/secret_aws-cred.yaml
+manifests/secret_aws-cred_bak.yaml
 *.pem

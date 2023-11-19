@@ -316,8 +316,7 @@ def cellxgene_manifests(name: str):
                 "nginx.ingress.kubernetes.io/configuration-snippet": f"rewrite ^/{name}$ /{name}/ redirect;\n", #enforce trailing slash
                 "nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
                 "nginx.ingress.kubernetes.io/auth-url": f"http://{OAUTH2_APP_NAME}.{OAUTH2_NAMESPACE}.svc.cluster.local:{OAUTH2_PORT}/oauth2/auth",
-                # "nginx.ingress.kubernetes.io/auth-signin": f"http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/oauth2/sign_in?rd=$escaped_request_uri",
-                "nginx.ingress.kubernetes.io/auth-signin": f"https://{HOST_NAME}:{ING_CONTROLER_NODE_PORT_SSL}/oauth2/sign_in?rd=$escaped_request_uri",
+                "nginx.ingress.kubernetes.io/auth-signin": f"http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/oauth2/sign_in?rd=$escaped_request_uri",
                 "nginx.ingress.kubernetes.io/proxy-buffer-size": PROXY_BUFFER_SIZE,
                 "nginx.org/keepalive": "1"
                 # "nginx.org/max-conns": "1"
