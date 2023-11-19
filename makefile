@@ -17,9 +17,9 @@ build-docker-images:
 
 apply-aws-secrets:
 	@echo "Populate	the AWS secrets in the secret_aws-cred.yaml file"
-	sed -e "s/\S3_ENDPOINT_URL/$$(echo -n ${AWS_ENDPOINT_URL} | base64 )/" \
-	   	-e "s/\S3_ACCESS_KEY_ID/$$(echo -n ${AWS_ACCESS_KEY_ID} | base64 ) /" \
-	   	-e "s/\S3_SECRET_ACCESS_KEY/$$(echo -n ${AWS_SECRET_ACCESS_KEY} | base64 ) /" \
+	sed -e "s/\S3_ENDPOINT_URL/$$(echo -n ${AWS_ENDPOINT_URL} | base64 -w0 )/" \
+	   	-e "s/\S3_ACCESS_KEY_ID/$$(echo -n ${AWS_ACCESS_KEY_ID} | base64 -w0 ) /" \
+	   	-e "s/\S3_SECRET_ACCESS_KEY/$$(echo -n ${AWS_SECRET_ACCESS_KEY} | base64 -w0 ) /" \
 		manifests/templates/secret_aws-cred.yaml > manifests/secret_aws-cred.yaml
 	kubectl apply -f manifests/secret_aws-cred.yaml
 

@@ -75,8 +75,6 @@ def oauth2proxy_manifests(name: str):
             "template": {
                 "metadata": {"labels": {"app": name}},
                 "spec": {
-                    # "hostNetwork": True,
-                    # "dnsPolicy": "ClusterFirst",
                     "containers": [{
                         "name": name,
                         "image": OAUTH2_IMAGE,
