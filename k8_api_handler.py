@@ -123,6 +123,7 @@ class K8ApiHandler():
         specs = manifest.get("spec") 
         nreplicas = specs.get("replicas", 1)
 
+        print("manifest: ", manifest)
         resp = self.AppsV1Api.create_namespaced_deployment(
             body=manifest, 
             namespace=self.namespace

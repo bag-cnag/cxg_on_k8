@@ -27,6 +27,7 @@ K8_IP = os.getenv("K8_IP")
 K8_PORT = os.getenv("K8_PORT")
 HOST_NAME = os.getenv("HOST_NAME")
 ING_CONTROLER_NODE_PORT = os.getenv("ING_CONTROLER_NODE_PORT")
+ING_CONTROLER_NODE_PORT_SSL = os.getenv("ING_CONTROLER_NODE_PORT_SSL")
 
 # Kubernetes Authentication
 CLUSTER_ROOT_CERTIFICATE = os.getenv("CLUSTER_ROOT_CERTIFICATE")
@@ -38,13 +39,12 @@ KEYCLOAK_ENDPOINT = os.getenv("KEYCLOAK_ENDPOINT")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
 
 OAUTH2_IMAGE = 'quay.io/oauth2-proxy/oauth2-proxy:v7.5.1'
-OAUTH2_APP_NAME = 'oauth2-proxy'
+OAUTH2_APP_NAME = os.getenv("OAUTH2_APP_NAME")
 
 OAUTH2_CLIENT_ID = 'cellxgene'
 OAUTH2_CLIENT_SECRET = os.getenv("OAUTH2_CLIENT_SECRET")
-OAUTH2_NAMESPACE = 'ingress-nginx'
-
-OAUTH2_PORT = 8091
+OAUTH2_NAMESPACE = os.getenv("OAUTH2_NAMESPACE")
+OAUTH2_PORT = int(os.getenv("OAUTH2_PORT"))
 PROXY_BUFFER_SIZE = '64k'
 
 # Cellxgene config
@@ -136,7 +136,7 @@ def oauth2proxy_manifests(name: str):
             "name": name,
         },
         "spec": {
-            # "ingressClassName": "nginx",
+            "ingressClassName": "nginx",
             "rules": [{
                 "host": HOST_NAME,
                 "http": {
@@ -316,7 +316,8 @@ def cellxgene_manifests(name: str):
                 "nginx.ingress.kubernetes.io/configuration-snippet": f"rewrite ^/{name}$ /{name}/ redirect;\n", #enforce trailing slash
                 "nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
                 "nginx.ingress.kubernetes.io/auth-url": f"http://{OAUTH2_APP_NAME}.{OAUTH2_NAMESPACE}.svc.cluster.local:{OAUTH2_PORT}/oauth2/auth",
-                "nginx.ingress.kubernetes.io/auth-signin": f"http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/oauth2/sign_in?rd=$escaped_request_uri",
+                # "nginx.ingress.kubernetes.io/auth-signin": f"http://{HOST_NAME}:{ING_CONTROLER_NODE_PORT}/oauth2/sign_in?rd=$escaped_request_uri",
+                "nginx.ingress.kubernetes.io/auth-signin": f"https://{HOST_NAME}:{ING_CONTROLER_NODE_PORT_SSL}/oauth2/sign_in?rd=$escaped_request_uri",
                 "nginx.ingress.kubernetes.io/proxy-buffer-size": PROXY_BUFFER_SIZE,
                 "nginx.org/keepalive": "1"
                 # "nginx.org/max-conns": "1"
@@ -367,7 +368,11 @@ def deploy_oauth2proxy(kah: K8ApiHandler):
         deployment, service, ingress = oauth2proxy_manifests(name=name)
 
         print ("Creating deployment...")
-        kah.create_deployment(deployment)
+        try:
+            kah.create_deployment(deployment)
+        except ApiException as e:
+            print(e)
+            
         print("Creating service...")
         kah.create_service(service)
         print("Creating ingress...")

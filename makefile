@@ -49,12 +49,14 @@ logs-ing-nginx-controller:
 endpoints-ing-nginx-controller:
 	ingress_pod_name=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}') && \
 	node_name=$$(kubectl get pod $$ingress_pod_name -n ingress-nginx -o jsonpath='{.spec.nodeName}') && \
+	node_internal_ip=$$(kubectl get node $$node_name -o jsonpath='{.status.addresses[0].address}') && \
 	node_port_http=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[0].nodePort}') && \
 	node_port_https=$$(kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.spec.ports[1].nodePort}') && \
 	echo "" && \
 	echo "Ingress Nginx Controller endpoints" && \
-	echo "http://$$node_name:$$node_port_http" && \
-	echo "https://$$node_name:$$node_port_https"
+	echo "node_name: $$node_name" && \
+	echo "http://$$node_internal_ip:$$node_port_http" && \
+	echo "https://$$node_internal_ip:$$node_port_https"
 
 del-ing-nginx-controller:
 	/usr/local/bin/helm uninstall ingress-nginx -n ingress-nginx
@@ -65,7 +67,7 @@ wget-ing-metrics-sever-from-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- wget metrics.ingress-nginx.svc.cluster.local/metrics
 
-running-suis:
+get-suis:
 	kubectl get sui -n ${ns}
 
 ings:
@@ -74,14 +76,60 @@ ings:
 del-suis:
 	kubectl delete sui -n ${ns} --all
 
+del-oauth2-proxy:
+	kubectl delete deployment/oauth2-proxy -n ingress-nginx
+	kubectl delete svc/oauth2-proxy -n ingress-nginx
+
+attach-oauth2-proxy:
+	pod=$$(kubectl get pods -n ingress-nginx -l app=oauth2-proxy -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ingress-nginx -- bin/sh
+
+try-oauth2-proxy:
+	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ingress-nginx -- wget http://${OAUTH2_APP_NAME}.${OAUTH2_NAMESPACE}.svc.cluster.local:${OAUTH2_PORT}/oauth2/auth
+
+test-auth:
+	url=http://${OAUTH2_APP_NAME}.${OAUTH2_NAMESPACE}.svc.cluster.local:${OAUTH2_PORT}/oauth2/auth && \
+	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ingress-nginx -- \
+	wget --header="Cookie: _oauth2_proxy=YOUR_COOKIE_HERE" --no-check-certificate $$url
+
+
+logs-oauth2-proxy:
+	pod=$$(kubectl get pods -n ingress-nginx -l app=oauth2-proxy -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl logs -f $$pod -n ingress-nginx
+
 curl-cxg:
 	instance=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.labels.instance}') && \
 	echo $$instance && \
 	echo "curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/" && \
-	curl -L http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/ --verbose
+	curl -kL http://${HOST_NAME}:${ING_CONTROLER_NODE_PORT}/$$instance/ --verbose
 
 mkcert:
 	/usr/local/bin/mkcert -cert-file ./certs/cxgk8.cnag.dev.pem -key-file ./certs/cxgk8.cnag.dev-key.pem cxgk8.cnag.dev
+
+
+apply-cert:
+	kubectl -n cert-manager create secret tls mkcert --cert ./certs/cxgk8.cnag.dev.pem --key ./certs/cxgk8.cnag.dev-key.pem 
+	# kubectl create secret tls tls-secret --cert=./certs/cxgk8.cnag.dev.pem --key=./certs/cxgk8.cnag.dev-key.pem -n cert-manager
+
+del-cert:
+	kubectl delete secret tls-secret -n cert-manager
+
+show-cert:
+	kubectl get secret tls-secret -n cert-manager -o yaml
+
+install-cert-manager:
+	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.13.2/cert-manager.yaml
+
+deploy-cert-manager-issuer:
+	kubectl apply -f manifests/cert-issuer.yaml
+
+del-cert-manager-issuer:
+	kubectl delete -f manifests/cert-issuer.yaml
+
+get-cert-manager-issuer:
+	kubectl get issuers ca-issuer -n cert-manager -o wide
 
 # when getting the docker images from a private registry
 #copy the output of the following command to the DOCKER_CONFIG_JSON variable in the .env file
