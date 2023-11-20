@@ -24,7 +24,7 @@ spec:
         metadata:
           labels:
             app: cellxgene
-            instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+            instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
         spec:
           containers:
           - args:
@@ -34,7 +34,7 @@ spec:
             - '5005'
             - --host
             - 0.0.0.0
-            - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad
+            - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad # CHG
             - --annotations-file
             - /data/annotations.csv
             - --gene-sets-file
@@ -49,8 +49,8 @@ spec:
                   command:
                   - /usr/local/bin/python
                   - -c
-                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv',
-                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv',
+                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', # CHG
+                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv', # CHG
                     's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/')
             name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
             ports:
@@ -64,7 +64,7 @@ spec:
           - command:
             - /bin/sh
             - -c
-            - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/
+            - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/ # CHG
             envFrom:
             - secretRef:
                 name: aws-cred-secret

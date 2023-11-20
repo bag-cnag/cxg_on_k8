@@ -92,6 +92,7 @@ def oauth2proxy_manifests(name: str):
                             f"--cookie-domain={HOST_NAME}",
                             f"--whitelist-domain={HOST_NAME}",
                             "--email-domain=*",
+                            "--insecure-oidc-allow-unverified-email=true",
                             "--ssl-insecure-skip-verify=true",
                             "--ssl-upstream-insecure-skip-verify=true",
                             "--pass-authorization-header=true",
@@ -134,7 +135,6 @@ def oauth2proxy_manifests(name: str):
             "name": name,
         },
         "spec": {
-            "ingressClassName": "nginx",
             "rules": [{
                 "host": HOST_NAME,
                 "http": {
@@ -213,6 +213,11 @@ def cellxgene_manifests(name: str):
                     }
                 },
                 "spec": {
+                    "securityContext": {
+                        "runAsUser": 1000,
+                        "runAsGroup": 1000,
+                        "fsGroup": 1000,
+                    },
                     "initContainers": [{
                         "name": "init-cellxgene",
                         "image": AWS_CLI_IMAGE,
@@ -232,7 +237,6 @@ def cellxgene_manifests(name: str):
                         "name": name,
                         "image": CXG_IMAGE,
                         "ports": [{"containerPort": CXG_PORT}],
-                        "securityContext": {"runAsUser": 1000},
                         "args": [
                             "launch", "--verbose",
                             "-p", f"{CXG_PORT}",
@@ -251,7 +255,7 @@ def cellxgene_manifests(name: str):
                             f"from fsspec import filesystem as fs; s3 = fs('s3');    \
                             s3.upload('/data/annotations.csv', '{USER_FILES_PATH}'); \
                             s3.upload('/data/gene_sets.csv', '{USER_FILES_PATH}')"
-                        ]}}}
+                        ]}}},
                         # "startupProbe": {
                         #     "exec": {
                         #         "command": [
@@ -363,16 +367,9 @@ def deploy_oauth2proxy(kah: K8ApiHandler):
         print("No oauth2-proxy instance found in the cluster: creating it")
 
         deployment, service, ingress = oauth2proxy_manifests(name=name)
-
-        print ("Creating deployment...")
-        try:
-            kah.create_deployment(deployment)
-        except ApiException as e:
-            print(e)
-            
-        print("Creating service...")
+        
+        kah.create_deployment(deployment)
         kah.create_service(service)
-        print("Creating ingress...")
         kah.create_ingress(ingress)
 
         print("oauth2-proxy deployed.")
@@ -393,10 +390,14 @@ def main():
     kah = K8ApiHandler(
         host=f"https://{K8_IP}:{K8_PORT}",
         oidc_client=(SERVICE_ACCOUNT, ACCOUNT_TOKEN),
-        cert=CLUSTER_ROOT_CERTIFICATE
+        cert=CLUSTER_ROOT_CERTIFICATE,
+        namespace=NAMESPACE
     )
     deploy_oauth2proxy(kah)
     deploy_cellxgene(kah)
+    # manifest = cellxgene_manifest("cellxgene")
+    # suis = kah.list_custom_object(manifest, f"user=test2")
+    # print(len(suis['items']))
 
 if __name__ == '__main__':
     main()

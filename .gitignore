@@ -1,6 +1,6 @@
 *__pycache__*
 *.aws/*
-venv
+*venv/*
+*txt*
+manifests/secret*.yaml
 .env
-manifests/secret-docker-registry.yaml
-manifests/secret_aws-cred.yaml

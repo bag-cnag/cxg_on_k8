@@ -123,7 +123,6 @@ class K8ApiHandler():
         specs = manifest.get("spec") 
         nreplicas = specs.get("replicas", 1)
 
-        print("manifest: ", manifest)
         resp = self.AppsV1Api.create_namespaced_deployment(
             body=manifest, 
             namespace=self.namespace
@@ -141,14 +140,16 @@ class K8ApiHandler():
 
         self.log(f"Deployment {name} up.")
 
-    def create_custom_resource(self, manifest: dict) -> None:
-        """Create a deployment"""
-        resp = None
-        name = self.get_name_in_manifest(manifest)
-        specs = manifest.get("spec") 
-        nreplicas = specs.get("replicas", 1)
+    @staticmethod
+    def get_custom_resource_params(manifest: dict) -> (str, str, str):
         group, version = manifest['apiVersion'].split('/')
         plural = str(manifest['kind']).lower() + 's'
+        return group, version, plural
+
+    def create_custom_resource(self, manifest: dict) -> None:
+        """Create a custom resource."""
+        name = self.get_name_in_manifest(manifest)
+        group, version, plural = self.get_custom_resource_params(manifest)
 
         resp = self.CustomObjectsApi.create_namespaced_custom_object(
             body=manifest,
@@ -158,7 +159,33 @@ class K8ApiHandler():
             namespace=self.namespace
         )
         self.log(f"Response: ", resp)
-        self.log(f"Custom object: {manifest['kind']} with name: {name} up.")
+        self.log(f"Custom object {manifest['kind']} with name: {name} up.")
+
+    def read_ingress(self, name) -> None:
+        return self.NetworkingV1Api.read_namespaced_ingress(
+            name=name,
+            namespace=self.namespace
+        )
+
+    def list_custom_object(self, manifest: dict, label_selector) -> []:
+        group, version, plural = self.get_custom_resource_params(manifest)
+        return self.CustomObjectsApi.list_namespaced_custom_object(
+            group=group,
+            version=version,
+            plural=plural,
+            namespace=self.namespace,
+            label_selector=label_selector
+        )
+
+    def delete_custom_object(self, manifest: dict, name: str):
+        group, version, plural = self.get_custom_resource_params(manifest)
+        return self.CustomObjectsApi.delete_namespaced_custom_object(
+            group=group,
+            version=version,
+            plural=plural,
+            namespace=self.namespace,
+            name=name
+        )
 
     def create_service(self, manifest: dict) -> None:
         """Create a service"""
@@ -187,4 +214,12 @@ class K8ApiHandler():
         time.sleep(1)
         self.log(f"Ingress {name} setup.")
 
-# K8ApiHandler(namespace="default", host="https://192.168.49.2:8443", token=OMICSDM_TOKEN, "/home/ejodry/.minikube/ca.crt")
+    def list_custom_object(self, manifest: dict, label_selector) -> []:
+        group, version, plural = self.get_custom_resource_params(manifest)
+        return self.CustomObjectsApi.list_namespaced_custom_object(
+            group=group,
+            version=version,
+            plural=plural,
+            namespace=self.namespace,
+            label_selector=label_selector
+        )
