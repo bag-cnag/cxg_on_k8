@@ -92,13 +92,13 @@ def sui_create(body, spec, logger, namespace, **_):
 
 async def sui_self_delete_async(body, logger, motive):
     CustomObjectsApi = kubernetes.client.CustomObjectsApi()
-    CustomObjectsApi.delete_namespaced_custom_object({
-        "group": "cnag.eu",
-        "version": "v1",
-        "name": body.metadata.name,
-        "namespace": body.metadata.namespace,
-        "plural": "singleuserinstances"
-    })
+    CustomObjectsApi.delete_namespaced_custom_object(
+        group="cnag.eu",
+        version="v1",
+        name=body.metadata.name,
+        namespace=body.metadata.namespace,
+        plural="singleuserinstances"
+    )
     logger.info(
         f"SingleUserInstance: {body.metadata.name} marked for deletion "+
         f"with motive: {motive}. This will also delete children resources")
