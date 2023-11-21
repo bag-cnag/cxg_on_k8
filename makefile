@@ -12,9 +12,22 @@ run:
 
 test:
 	kubectl get ns testing 2>/dev/null || kubectl create ns testing
-	# . venv/bin/activate && pytest tests -k 'test_create_and_delete' --cov && \
-	. venv/bin/activate && pytest tests -k 'test_create_and_wait_deletion' --cov
+	. venv/bin/activate && \
+	pytest tests 
+	# pytest tests -k 'test_create_and_delete' && \
+	# pytest tests -k 'test_create_and_wait_deletion' && \
+	# pytest tests -k 'test_create_without_metrics_server' && \
+	# pytest tests -k 'test_create_with_wrong_manifest'
 
+make cov:
+	kubectl get ns testing 2>/dev/null || kubectl create ns testing
+	. venv/bin/activate && \
+	pytest --cov=operator --cov-branch \
+		--cov-report term \
+		--junitxml=tests/reports/junit.xml \
+		--cov-report html:tests/reports/coverage \
+		--cov-report xml:tests/reports/coverage/coverage.xml
+			
 build-docker-images:
 	docker build . -f docker/Dockerfile_cellxgene -t ${REGISTRY_URL}/cellxgene:xsmall
 	docker build . -f docker/Dockerfile_aws-cli -t ${REGISTRY_URL}/aws_cli:xsmall
@@ -108,10 +121,10 @@ del-suis:
 	kubectl delete sui -n testing --all
 
 force-del-sui:
-	sui=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.name}') && \
-	echo $$sui && \
-	kubectl patch -n cellxgene sui $$sui -p '{"metadata":{"finalizers":[]}}' --type=merge
-	kubectl delete sui -n ${ns} --all
+	# sui=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.name}') && \
+	# echo $$sui && \
+	# kubectl patch -n cellxgene sui $$sui -p '{"metadata":{"finalizers":[]}}' --type=merge
+	# kubectl delete sui -n ${ns} --all
 
 	testing_sui=$$(kubectl get sui -n testing -o jsonpath='{.items[0].metadata.name}') && \
 	echo $$testing_sui && \

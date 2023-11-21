@@ -1,0 +1,65 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "PyTest test_create_and_delete",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "pytest",
+            "args": [
+                "-k", "test_create_and_delete"
+            ],
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            "name": "PyTest test_create_and_wait_deletion",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "pytest",
+            "args": [
+                "-k", "test_create_and_wait_deletion"
+            ],
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            "name": "PyTest test_create_without_metrics_server",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "pytest",
+            "args": [
+                "-k", "test_create_without_metrics_server"
+            ],
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            "name": "PyTest test_create_with_wrong_manifest",
+            "type": "python",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "module": "pytest",
+            "args": [
+                "-k", "test_create_with_wrong_manifest"
+            ],
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        }
+    ]
+}

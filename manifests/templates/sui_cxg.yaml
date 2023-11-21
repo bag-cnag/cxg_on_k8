@@ -63,7 +63,7 @@ spec:
           - command:
             - /bin/sh
             - -c
-            - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/ # CHG
+            - aws s3 sync s3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/ /data/
             envFrom:
             - secretRef:
                 name: aws-cred-secret
