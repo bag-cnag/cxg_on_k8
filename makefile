@@ -77,6 +77,10 @@ logs-ing-nginx-controller:
 	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl logs -f $$pod -n ingress-nginx
 
+nslookup-ing-nginx-controller:
+	pod=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ingress-nginx -- nslookup oauth2-proxy.ingress-nginx.svc.cluster.local
+
 endpoints-ing-nginx-controller:
 	ingress_pod_name=$$(kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}') && \
 	node_name=$$(kubectl get pod $$ingress_pod_name -n ingress-nginx -o jsonpath='{.spec.nodeName}') && \

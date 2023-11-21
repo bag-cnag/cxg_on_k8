@@ -27,7 +27,6 @@ K8_IP = os.getenv("K8_IP")
 K8_PORT = os.getenv("K8_PORT")
 HOST_NAME = os.getenv("HOST_NAME")
 ING_CONTROLLER_NODE_PORT = os.getenv("ING_CONTROLLER_NODE_PORT")
-ING_CONTROLLER_NODE_PORT_SSL = os.getenv("ING_CONTROLLER_NODE_PORT_SSL")
 
 # Kubernetes Authentication
 CLUSTER_ROOT_CERTIFICATE = os.getenv("CLUSTER_ROOT_CERTIFICATE")
@@ -135,6 +134,8 @@ def oauth2proxy_manifests(name: str):
             "name": name,
         },
         "spec": {
+            # w/o ingressClassName nginx it will run into a redirect loop
+            "ingressClassName": "nginx",
             "rules": [{
                 "host": HOST_NAME,
                 "http": {
