@@ -22,8 +22,7 @@ spec:
       serviceAccountName: sui-operator
       containers:
         - name: sui-operator
-          image: docker.vm2.dev/sui_operator:test
-          # image: docker.vm2.dev/sui_operator:v1 this image is not build yet
+          image: docker.vm2.dev/sui_operator:v1
           resources:
             limits:
               memory: "256Mi"

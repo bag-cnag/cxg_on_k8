@@ -34,7 +34,7 @@ spec:
             - '5005'
             - --host
             - 0.0.0.0
-            - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad # CHG
+            - https://github.com/chanzuckerberg/cellxgene/raw/main/example-dataset/pbmc3k.h5ad 
             - --annotations-file
             - /data/annotations.csv
             - --gene-sets-file
@@ -42,15 +42,15 @@ spec:
             envFrom:
             - secretRef:
                 name: aws-cred-secret
-            image: cellxgene:xsmall
+            image: docker.vm2.dev/cellxgene:xsmall
             lifecycle:
               preStop:
                 exec:
                   command:
                   - /usr/local/bin/python
                   - -c
-                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', # CHG
-                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv', # CHG
+                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', 
+                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv',
                     's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/')
             name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
             ports:
@@ -68,14 +68,18 @@ spec:
             envFrom:
             - secretRef:
                 name: aws-cred-secret
-            image: aws_cli:xsmall
+            image: docker.vm2.dev/aws_cli:xsmall
             name: init-cellxgene
             volumeMounts:
             - mountPath: /data
               name: data
+          imagePullSecrets:
+          - name: docker-registry-secret
           volumes:
           - emptyDir: {}
             name: data
+
+  
   ingress:
     apiVersion: networking.k8s.io/v1
     kind: Ingress

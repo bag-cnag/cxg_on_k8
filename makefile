@@ -3,23 +3,30 @@ ns = cellxgene
 
 .PHONY: venv
 venv:
-	python3 -m venv venv
-	. venv/bin/activate && pip install --upgrade pip && \
+	/usr/local/bin/python3.11 -m venv venv
+	. venv/bin/activate && pip3 install --upgrade pip && \
 	pip install -r requirements.txt
 
 run:
 	. venv/bin/activate && python3 deploy_cellxgene.py
 
+test:
+	kubectl get ns testing 2>/dev/null || kubectl create ns testing
+	# . venv/bin/activate && pytest tests -k 'test_create_and_delete' --cov && \
+	. venv/bin/activate && pytest tests -k 'test_create_and_wait_deletion' --cov
+
 build-docker-images:
-	docker build . -f docker/Dockerfile_cellxgene -t ${REGISTRY_URL}/cellxgene:xsmall
-	docker build . -f docker/Dockerfile_aws-cli -t ${REGISTRY_URL}/aws_cli:xsmall
-	docker build . -f docker/Dockerfile_operator -t ${REGISTRY_URL}/sui_operator:test
+	# docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
+	# docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
+	docker build . -f docker/Dockerfile_operator -t sui_operator:v1
 
 apply-manifests:
+	kubectl get ns cellxgene 2>/dev/null || kubectl create ns cellxgene
 	kubectl apply -f manifests/crd_single-user-instance.yaml
 	kubectl apply -f manifests/serviceaccount_sui-operator.yaml
 	kubectl apply -f manifests/service_ingress-nginx-controller_metrics.yaml
 	kubectl apply -f manifests/deployment_sui_operator.yaml
+	kubectl apply -f manifests/serviceaccount_omicsdm.yaml
 
 apply-aws-secrets:
 	@echo "Populate	the AWS secrets in the secret_aws-cred.yaml file"
@@ -44,6 +51,7 @@ attach-sui-operator:
 	kubectl exec -it $$pod -n ${ns} -- bin/sh
 
 deploy-ing-nginx-controller:
+	kubectl get ns ingress-nginx 2>/dev/null || kubectl create ns ingress-nginx
 	/usr/local/bin/helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 	/usr/local/bin/helm repo update
 	/usr/local/bin/helm install ingress-nginx ingress-nginx/ingress-nginx --set controller.service.type=NodePort --set controller.allowSnippetAnnotations=true -n ingress-nginx
@@ -125,10 +133,20 @@ docker-registry-login:
 	@echo "Logging into Docker registry $(REGISTRY_URL)"
 	docker login https://$(REGISTRY_URL)/v2/
 
+tag-docker-images:
+	# docker tag cellxgene:xsmall $(REGISTRY_URL)/cellxgene:xsmall
+	# docker tag aws_cli:xsmall $(REGISTRY_URL)/aws_cli:xsmall
+	docker tag sui_operator:v1 $(REGISTRY_URL)/sui_operator:v1
+
 push-docker-images:
 	docker push $(REGISTRY_URL)/cellxgene:xsmall
 	docker push $(REGISTRY_URL)/aws_cli:xsmall
-	docker push $(REGISTRY_URL)/sui_operator:test
+	docker push $(REGISTRY_URL)/sui_operator:
+	
+pull-docker-images:
+	docker pull $(REGISTRY_URL)/cellxgene:xsmall
+	docker pull $(REGISTRY_URL)/aws_cli:xsmall
+	docker pull $(REGISTRY_URL)/sui_operator:v1
 
 list-docker-images:
 	curl -L -u $(REGISTRY_USER):$(REGISTRY_PW) -X GET https://$(REGISTRY_URL)/v2/_catalog 

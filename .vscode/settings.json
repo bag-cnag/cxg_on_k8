@@ -1,0 +1,20 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/cxg_on_k8/venv/bin/python3",
+  "python.testing.pytestPath": "${workspaceFolder}/cxg_on_k8/venv/bin/pytest",
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.envFile": "${workspaceFolder}/cxg_on_k8/.env",
+  "python.testing.cwd": "${workspaceFolder}/cxg_on_k8/tests",
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.linting.enabled": true,
+  "python.formatting.provider": "black",
+  "coverage-gutters.manualCoverageFilePaths": [
+    "${workspaceFolder}/cxg_on_k8/tests/reports/coverage/coverage.xml"
+  ],
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true
+  }
+}

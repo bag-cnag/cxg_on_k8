@@ -4,3 +4,4 @@
 *txt*
 manifests/secret*.yaml
 .env
+.coverage

@@ -1,4 +1,5 @@
-# import shlex
+import os
+
 import subprocess
 import time
 import re
@@ -14,18 +15,23 @@ def get_manifest(path):
 
 def run_manifest(verb, payload):
     """Runs manifest using kubectl and sleep 1s to wait for effect."""
-    subprocess.run(f"cat <<EOF | kubectl -n testing {verb} -f -\n{payload}EOF",
+    subprocess.run(f"cat <<EOF | kubectl {verb} -f -\n{payload}EOF",
                    shell=True, check=True)
     time.sleep(1)
 
 
-def test_create_and_delete():
+def test_create_and_delete():    
+    # get current directory where this test is running
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    if current_dir.endswith("tests"):
+        current_dir = os.path.dirname(current_dir)
+
     with KopfRunner([
         'run', '-n', 'testing', '--verbose',
-        'operator/operator_single-user-instances.py']) as runner:
+        f'{current_dir}/operator/operator_single-user-instances.py']) as runner:
 
         # do something while the operator is running.
-        sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml")
+        sui_manifest = get_manifest(f"{current_dir}/manifests/templates/sui_cxg.yaml")
         run_manifest("create", sui_manifest)
         run_manifest("delete", sui_manifest)
 
@@ -41,11 +47,16 @@ def test_create_and_delete():
     assert 'Deleted, really deleted, and we are notified.' in runner.stdout
 
 def test_create_and_wait_deletion():
+    # get current directory where this test is running
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    if current_dir.endswith("tests"):
+        current_dir = os.path.dirname(current_dir)
+
     with KopfRunner([
         'run', '-n', 'testing', '--verbose',
-        'operator/operator_single-user-instances.py']) as runner:
+        f'{current_dir}/operator/operator_single-user-instances.py']) as runner:
 
-        sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml")
+        sui_manifest = get_manifest(f"{current_dir}/manifests/templates/sui_cxg.yaml")
         # Set lifespan to 30s.
         sui_manifest = re.sub(r'lifespan [0-9]+', 'lifespan 30', sui_manifest)
 
