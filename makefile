@@ -50,6 +50,10 @@ attach-sui-operator:
 	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
 	kubectl exec -it $$pod -n ${ns} -- bin/sh
 
+nslookup-sui-operator:
+	pod=$$(kubectl get pods -n ${ns} -l application=sui-operator -o jsonpath='{.items[0].metadata.name}') && \
+	kubectl exec -it $$pod -n ${ns} -- nslookup kubernetes.default.svc.cluster.local
+
 deploy-ing-nginx-controller:
 	kubectl get ns ingress-nginx 2>/dev/null || kubectl create ns ingress-nginx
 	/usr/local/bin/helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -94,12 +98,25 @@ wget-ing-metrics-sever-from-sui-operator:
 
 get-suis:
 	kubectl get sui -n ${ns}
+	kubectl get sui -n testing
 
 ings:
 	kubectl get ing -n ${ns}
 
 del-suis:
 	kubectl delete sui -n ${ns} --all
+	kubectl delete sui -n testing --all
+
+force-del-sui:
+	sui=$$(kubectl get sui -n ${ns} -o jsonpath='{.items[0].metadata.name}') && \
+	echo $$sui && \
+	kubectl patch -n cellxgene sui $$sui -p '{"metadata":{"finalizers":[]}}' --type=merge
+	kubectl delete sui -n ${ns} --all
+
+	testing_sui=$$(kubectl get sui -n testing -o jsonpath='{.items[0].metadata.name}') && \
+	echo $$testing_sui && \
+	kubectl patch -n testing sui $$testing_sui -p '{"metadata":{"finalizers":[]}}' --type=merge
+	kubectl delete sui -n testing --all
 
 del-oauth2-proxy:
 	kubectl delete deployment/oauth2-proxy -n ingress-nginx; \
