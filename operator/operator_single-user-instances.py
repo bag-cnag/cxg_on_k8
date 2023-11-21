@@ -10,7 +10,7 @@ from kopf._cogs.structs.patches import Patch
 from kopf._cogs.clients import api
 
 
-TICK = 60 # Number of seconds between refreshes
+TICK = 30 # Number of seconds between refreshes
 LATENCY_METRIC = 'nginx_ingress_controller_ingress_upstream_latency_seconds'
 
 
@@ -40,7 +40,7 @@ async def sui_delete(body, resource, namespace, logger, **_):
         url=resource.get_url(namespace=namespace, name=name),
         headers={'Content-Type': 'application/merge-patch+json'},
         payload=Patch({'metadata':{'finalizers': []}}),
-        settings=dotdict({ # operatorSettings mockup.
+        settings=dotdict({ # OperatorSettings mockup.
             'networking': dotdict({
                 'request_timeout': TICK,
                 'connect_timeout': TICK,
@@ -58,9 +58,6 @@ def sui_create(body, spec, logger, namespace, **_):
     # Get subresources
     deployment, service, ingress = map(spec.get,
                                        ["deployment", "service", "ingress"])
-    if not deployment or not service or not ingress:
-        raise kopf.PermanentError("Wrong SingleUserInstance definition")
-
     # Adopt them
     kopf.adopt(deployment)
     kopf.adopt(service)
@@ -72,22 +69,22 @@ def sui_create(body, spec, logger, namespace, **_):
         namespace=namespace,
         body=deployment
     )
-    logger.debug(f"Created child deployment: {obj}")
+    logger.debug(f"Created child deployment: {obj}.")
 
     CoreV1Api = kubernetes.client.CoreV1Api()
     obj = CoreV1Api.create_namespaced_service(
         namespace=namespace,
         body=service
     )
-    logger.debug(f"Created child service: {obj}")
+    logger.debug(f"Created child service: {obj}.")
 
     NetworkingV1Api = kubernetes.client.NetworkingV1Api()
     obj = NetworkingV1Api.create_namespaced_ingress(
         namespace=namespace,
         body=ingress
     )
-    logger.debug(f"Created child ingress: {obj}")
-    logger.info("SingleUserInstance successfully deployed")
+    logger.debug(f"Created child ingress: {obj}.")
+    logger.info("SingleUserInstance successfully deployed.")
 
 
 async def sui_self_delete_async(body, logger, motive):
@@ -101,7 +98,7 @@ async def sui_self_delete_async(body, logger, motive):
     )
     logger.info(
         f"SingleUserInstance: {body.metadata.name} marked for deletion "+
-        f"with motive: {motive}. This will also delete children resources")
+        f"with motive: {motive}. This will also delete children resources.")
 
 
 @kopf.timer('cnag.eu', 'v1', 'singleuserinstances',
@@ -112,13 +109,17 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
     metrics_uri = ("http://metrics.ingress-nginx.svc.cluster.local" 
                    if incluster() else "http://localhost:10254") + "/metrics"
 
-    r = requests.get(metrics_uri)
-
-    if r.status_code != 200:
+    r = None
+    try:
+        r = requests.get(metrics_uri)
+        if r.status_code != 200:
+            raise Exception()
+    except:
         raise kopf.PermanentError(
             "Could not query the ingress-nginx-controller metrics server." +
-            f"request at: {metrics_uri}, returned status: {r.status_code}"
-        )
+            f' Request at: {metrics_uri} ' +
+            (f'returned status: {r.status_code}.' 
+             if r else 'raised an exception.'))
 
     # metric -> end of lines <=> NaN some time after connection is closed.
     lines = [
@@ -133,7 +134,7 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
     lines = [line for line in lines if line[-3:] == 'NaN']
 
     if lines:
-        await sui_self_delete_async(body, logger,
+        await sui_self_delete_async(body, logger, 
                                     motive="detected app shutdown")
 
 
