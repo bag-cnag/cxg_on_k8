@@ -2,4 +2,7 @@
 *.aws/*
 *venv/*
 *txt*
-manifests/secret*.yaml
+*.vscode*
+*_bak*
+*.pytest_cache*
+*.coverage*

@@ -2,15 +2,20 @@
 
 Proof of concept about deploying cellxgene instances on a kubernetes cluster;
 
-*Development dependencies:*
+- *Development dependencies:*
 The backend is the [kubernetes python client api](https://github.com/kubernetes-client/python/) + kopf (see below)
 ```bash
 python3 -m pip install kubernetes kopf[uvloop]
 ```
 
-*Namespace:* Instances are deployed in a dedicated `cellxgene` namespace.
+- *Namespace:* Instances are deployed in a dedicated `cellxgene` namespace.
 ```bash
 kubectl apply -f manifests/namespace_cellxgene.yaml
+```
+
+- *Tests:* Conversely for unit tests instances:
+```bash
+kubectl apply -f manifests/namespace_testing.yaml
 ```
 
 ## Docker images
@@ -19,20 +24,63 @@ Kubernetes runs containerized applications.
 
 For the demo, size optimized alpine images are used. To build them:
 
-*cellxgene* - warning: 600+ seconds
+- *cellxgene* - warning: takes **600+ seconds** 
 ```bash
 docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
 ```
 
-*aws-cli*
+- *aws-cli*
 ```bash
 docker build . -f docker/Dockerfile_aws-cli -t aws_cli:xsmall
 ```
 
-*sui-operator*
+- *sui-operator*
 ```bash
 docker build . -f docker/Dockerfile_operator -t sui_operator:v1
 ```
+
+## Authentication
+
+### Kubernetes
+To be able to query the kubernetes api, a serviceaccount needs to exist with the proper [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) permissions.
+
+In our example, the file `manifests/serviceaccount_omicsdm.yaml` contains the definition of this service account.
+
+__Note__: At the moment, for development purposes, permissions have been set loosely. For production we will need to restrict the rights of the user according to minimum permissions principle.
+
+```bash
+kubectl apply -f manifests/serviceaccount_omicsdm.yaml
+```
+
+Now to retrieve the token you may use the following
+```bash
+kubectl describe secrets omicsdm-token
+```
+
+Related script variables `SERVICE_ACCOUNT` and `ACCOUNT_TOKEN`
+
+### OpenID-Connect client
+For the connection between our OIDC provider (I.e. keycloak) and oauth2-proxy, we configure a client like this:
+
+1. Client -> Create -> enter ClientID
+2. Set Client protocol `openid-connect` -> save
+3. Set Access Type `confidential` -> save
+4. `http://*` and `https://*` in Valid Redirect URIs
+5. Mappers -> Create -> Audience -> name `audience` -> select Client in Included Client Audience
+6. (for groups: optional) Mappers -> Create -> `Group Membership` -> Group Membership -> name `groups` -> Token Claim Name `groups` -> Turn off full group path
+7. Credentials -> Secret lets you set `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` variables in deployment script.
+8. Populate with users (for groups: create group and add your users to it group)  
+
+
+**Useful tutorial:** [here](https://freedium.cfd/https://carlosedp.medium.com/adding-authentication-to-your-kubernetes-front-end-applications-with-keycloak-6571097be090)
+
+### AWS
+For containers to access **s3 bucket** you need to populate the variables within `manifests/secret_aws-cred.yaml` (Note: values must be encoded in base64). Then add it to the cluster. Secrets are defined per namespace, so the entries of this file are duplicated for `cellxgene` and `testing` namespaces. 
+
+```bash
+kubectl apply -f manifests/secret_aws-cred.yaml
+```
+
 
 ##  Operator and SingleUserInstances
 
@@ -76,6 +124,24 @@ kubectl -n cellxgene logs pod/sui-operator-57666b6944-q4lqt
 
 Once the operator is running you may submit manifests of kind `SingleUserInstance` with apiVersion `cnag.eu/v1`. If the operator is not running you might run into problems to create and especially delete resources of that type.
 
+### Testing
+
+**Dependencies:**
+```bash
+python3 -m pip install pytest pytest-cov
+```
+
+Assuming you have deployed `testing` namespace and populated it with the AWS credentials you are now able to run the Operator unit tests.
+```bash
+pytest -k 'test_operator'
+```
+
+Furthermore, If you want the code coverage:
+```bash
+pytest --cov-report [html | term] --cov=. tests/
+```
+
+
 ## API Handler
 
 The api handler is a layer over the kubernetes python client API to abstract some of the complexity.
@@ -106,48 +172,6 @@ Or
 
 ```python
 kah.list_pods()
-```
-
-## Authentication
-
-### Kubernetes
-To be able to query the kubernetes api, a serviceaccount needs to exist with the proper [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) permissions.
-
-In our example, the file `manifests/serviceaccount_omicsdm.yaml` contains the definition of this service account.
-
-__Note__: At the moment, for development purposes, permissions have been set loosely. For production we will need to restrict the rights of the user according to minimum permissions principle.
-
-```bash
-kubectl apply -f manifests/serviceaccount_omicsdm.yaml
-```
-
-Now to retrieve the token you may use the following
-```bash
-kubectl describe secrets omicsdm-token
-```
-
-Related script variables `SERVICE_ACCOUNT` and `ACCOUNT_TOKEN`
-
-### OpenID-Connect client
-For the connection between our OIDC provider (I.e. keycloak) and oauth2-proxy, we configure a client like this:
-
-1. Client -> Create -> enter ClientID
-2. Set Client protocol `openid-connect` -> save
-3. Set Access Type `confidential` -> save
-4. `http://*` and `https://*` in Valid Redirect URIs
-5. Mappers -> Create -> Audience -> name `audience` -> select Client in Included Client Audience
-6. (for groups: optional) Mappers -> Create -> `Group Membership` -> Group Membership -> name `groups` -> Token Claim Name `groups` -> Turn off full group path
-7. Credentials -> Secret lets you set `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` variables in deployment script.
-8. Populate with users (for groups: create group and add your users to it group)  
-
-
-**Useful tutorial:** [here](https://freedium.cfd/https://carlosedp.medium.com/adding-authentication-to-your-kubernetes-front-end-applications-with-keycloak-6571097be090)
-
-### AWS
-For containers to access **s3 bucket** you need to populate the variables within `manifests/secret_aws-cred.yaml` (Note: values must be encoded in base64). Then add it to the cluster
-
-```bash
-kubectl apply -f manifests/secret_aws-cred.yaml
 ```
 
 ## Scripts
