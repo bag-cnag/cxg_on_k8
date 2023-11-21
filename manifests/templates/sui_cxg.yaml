@@ -4,6 +4,7 @@ metadata:
   labels:
     app: cellxgene
     instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
+  namespace: cellxgene
   name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
 spec:
   lifespan: 999
@@ -49,9 +50,7 @@ spec:
                   command:
                   - /usr/local/bin/python
                   - -c
-                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', # CHG
-                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv', # CHG
-                    's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/')
+                  - from fsspec import filesystem as fs; s3 = fs('s3'); s3.upload('/data/annotations.csv', 's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/'); s3.upload('/data/gene_sets.csv', 's3://bucketdevel3tropal/cxg_on_k8/UserId/DataSetId/');
             name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
             ports:
             - containerPort: 5005
@@ -93,7 +92,6 @@ spec:
         app: cellxgene
         instance: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
       name: cellxgene-b104aae6-d7c0-4ded-9884-c88fb3cdeaf2
-      namespace: cellxgene
     spec:
       ingressClassName: nginx
       rules:
