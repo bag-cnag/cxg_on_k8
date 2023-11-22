@@ -1,5 +1,6 @@
 import requests
 
+from os import environ as env
 from functools import cache
 from subprocess import run
 from datetime import datetime, timezone
@@ -10,7 +11,8 @@ from kopf._cogs.structs.patches import Patch
 from kopf._cogs.clients import api
 
 
-TICK = 30 # Number of seconds between refreshes
+# Number of seconds between refreshes: possible to pass as env var.
+TICK = int(env.get('K8_SUI_OP_TICK', 60))
 LATENCY_METRIC = 'nginx_ingress_controller_ingress_upstream_latency_seconds'
 
 
@@ -55,33 +57,34 @@ async def sui_delete(body, resource, namespace, logger, **_):
 @kopf.on.create('cnag.eu', 'v1', 'singleuserinstances')
 def sui_create(body, spec, logger, namespace, **_):
     logger.info(f"A handler is called with body: {body}")
+
     # Get subresources
-    deployment, service, ingress = map(spec.get,
-                                       ["deployment", "service", "ingress"])
+    dep, svc, ing = map(spec.get, ("deployment", "service", "ingress"))
+
     # Adopt them
-    kopf.adopt(deployment)
-    kopf.adopt(service)
-    kopf.adopt(ingress)
+    kopf.adopt(dep)
+    kopf.adopt(svc)
+    kopf.adopt(ing)
 
     # Create them
     AppsV1Api = kubernetes.client.AppsV1Api()
     obj = AppsV1Api.create_namespaced_deployment(
         namespace=namespace,
-        body=deployment
+        body=dep
     )
     logger.debug(f"Created child deployment: {obj}.")
 
     CoreV1Api = kubernetes.client.CoreV1Api()
     obj = CoreV1Api.create_namespaced_service(
         namespace=namespace,
-        body=service
+        body=svc
     )
     logger.debug(f"Created child service: {obj}.")
 
     NetworkingV1Api = kubernetes.client.NetworkingV1Api()
     obj = NetworkingV1Api.create_namespaced_ingress(
         namespace=namespace,
-        body=ingress
+        body=ing
     )
     logger.debug(f"Created child ingress: {obj}.")
     logger.info("SingleUserInstance successfully deployed.")
@@ -134,7 +137,7 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
     lines = [line for line in lines if line[-3:] == 'NaN']
 
     if lines:
-        await sui_self_delete_async(body, logger, 
+        await sui_self_delete_async(body, logger,
                                     motive="detected app shutdown")
 
 

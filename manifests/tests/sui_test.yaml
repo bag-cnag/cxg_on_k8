@@ -1,0 +1,69 @@
+---
+apiVersion: cnag.eu/v1
+kind: SingleUserInstance
+metadata:
+  labels:
+    app: utest
+    instance: utest-0
+  namespace: testing
+  name: utest-0
+spec:
+  lifespan: 999
+  deployment:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: utest
+      labels:
+        app: utest
+        instance: utest-0
+    spec:
+      selector:
+        matchLabels:
+          instance: utest-0
+      template:
+        metadata:
+          labels:
+            instance: utest-0
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:1.14.2
+            ports:
+            - containerPort: 80
+  ingress:
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: utest
+      annotations:
+        nginx.ingress.kubernetes.io/configuration-snippet: 'rewrite ^/utest-0$
+          /utest-0/ redirect;'
+        nginx.ingress.kubernetes.io/proxy-buffer-size: 64k
+        nginx.ingress.kubernetes.io/rewrite-target: /$2
+    spec:
+      ingressClassName: nginx
+      rules:
+      - host: minikube.local
+        http:
+          paths:
+          - backend:
+              service:
+                name: utest-0
+                port:
+                  number: 8080
+            path: /utest-0(/|$)(.*)
+            pathType: ImplementationSpecific
+  service:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: utest-0
+    spec:
+      ports:
+      - port: 8080
+        protocol: TCP
+        targetPort: 80
+      selector:
+        instance: utest-0
+      type: ClusterIP

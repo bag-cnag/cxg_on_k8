@@ -6,12 +6,16 @@ from subprocess import run, Popen, CalledProcessError
 from kopf.testing import KopfRunner
 
 
-TICK = 30 # Operator refreshing rate
+# Operator refresh rate.
+TICK = 3 
+ENV = {'K8_SUI_OP_TICK': str(TICK)}
+
 NSTEST = 'testing'
-RUNNER_CMD = ['run', '-n', 'testing', '--verbose',
-               'operator/operator_single-user-instances.py', '--standalone']
-PFORWARD_CMD = ['kubectl', 'port-forward', '-n', 
-                   'ingress-nginx', 'svc/metrics', '10254:80']
+SUI_TEST = "manifests/tests/sui_test.yaml"
+RUNNER_CMD = ['run', '--verbose', '--standalone', '-n', f'{NSTEST}',
+              'operator/operator_single-user-instances.py']
+PFORWARD_CMD = ['kubectl', '-n', 'ingress-nginx', 
+                'port-forward', 'svc/metrics', '10254:80']
 
 
 def expose_metrics_server(func):
@@ -51,11 +55,11 @@ def run_manifest(verb, payload, tempo=1):
 
 @expose_metrics_server
 def test_create_and_delete():
-    with KopfRunner(RUNNER_CMD) as runner:
+    with KopfRunner(RUNNER_CMD, env=ENV) as runner:
         # do something while the operator is running.
-        sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml")
+        sui_manifest = get_manifest(SUI_TEST)
         run_manifest("create", sui_manifest)
-        run_manifest("delete", sui_manifest, 5)
+        run_manifest("delete", sui_manifest)
 
     assert runner.exit_code == 0
     assert runner.exception is None
@@ -71,10 +75,9 @@ def test_create_and_delete():
 
 @expose_metrics_server
 def test_create_and_wait_deletion():
-    with KopfRunner(RUNNER_CMD) as runner:
-        sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml",
-                                    lifespan=TICK)
-        run_manifest("create", sui_manifest, 5)
+    with KopfRunner(RUNNER_CMD, env=ENV) as runner:
+        sui_manifest = get_manifest(SUI_TEST, lifespan=TICK)
+        run_manifest("create", sui_manifest)
         # Waiting for auto deletion.
         time.sleep(2*TICK)
 
@@ -90,13 +93,12 @@ def test_create_and_wait_deletion():
 
 
 def test_create_without_metrics_server():
-    with KopfRunner(RUNNER_CMD) as runner:
-        sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml",
-                                    lifespan=120)
-        run_manifest("create", sui_manifest, 5)
+    with KopfRunner(RUNNER_CMD, env=ENV) as runner:
+        sui_manifest = get_manifest(SUI_TEST, lifespan=10*TICK)
+        run_manifest("create", sui_manifest)
         # Wait for a pass of the timers.
         time.sleep(TICK)
-        run_manifest("delete", sui_manifest, 5)
+        run_manifest("delete", sui_manifest)
 
     assert runner.exit_code == 0
     assert runner.exception is None
@@ -107,8 +109,8 @@ def test_create_without_metrics_server():
 
 def test_create_with_wrong_manifest():
     with pytest.raises(CalledProcessError):
-        with KopfRunner(RUNNER_CMD):
-            sui_manifest = get_manifest("manifests/templates/sui_cxg.yaml")
+        with KopfRunner(RUNNER_CMD, env=ENV):
+            sui_manifest = get_manifest(SUI_TEST)
             # Remove service from manifest
             run_manifest("create", 
                         sui_manifest[:sui_manifest.rfind('service')] + '\n')
