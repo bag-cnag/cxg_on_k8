@@ -1,0 +1,79 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: ingress-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+      - name: oauth2-proxy
+        image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+        ports:
+        - containerPort: 8091
+        args:
+        - --provider=keycloak-oidc
+        - --client-id=cellxgene
+        - --client-secret=RMd2UcSFjCkngPfwuMeTZvELYORoOHnk # TOCHANGE
+        - --cookie-secure=false
+        - --cookie-secret=dca70153c0ffd68a98696b6957b26e88
+        - --oidc-issuer-url=http://192.168.49.1:28080/realms/3TR # TOCHANGE
+        - --ssl-insecure-skip-verify=true
+        - --email-domain=*
+        - --oidc-extra-audience=cellxgene
+        - --pass-authorization-header=true
+        - --pass-access-token=true
+        - --set-authorization-header=true
+        - --set-xauthrequest=true
+        - --cookie-refresh=1m
+        - --cookie-expire=30m
+        - --http-address=0.0.0.0:8091
+        - --code-challenge-method=S256
+        - --upstream=file:///dev/null
+        - --cookie-domain=minikube.local # TOCHANGE
+        - --whitelist-domain=minikube.local # TOCHANGE
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: ingress-nginx
+  labels:
+    name: oauth2-proxy
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8091
+  selector:
+    app: oauth2-proxy
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "64k"
+  name: oauth2-proxy
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: minikube.local # TOCHANGE
+      http:
+        paths:
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 8091

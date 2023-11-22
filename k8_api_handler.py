@@ -177,15 +177,19 @@ class K8ApiHandler():
             label_selector=label_selector
         )
 
-    def delete_custom_object(self, manifest: dict, name: str):
-        group, version, plural = self.get_custom_resource_params(manifest)
+    def delete_custom_object(self, name: str,
+                             manifest: dict=None,
+                             group='cnag.eu',
+                             version='v1',
+                             plural='suis'):
+        if manifest:
+            group, version, plural = self.get_custom_resource_params(manifest)
         return self.CustomObjectsApi.delete_namespaced_custom_object(
             group=group,
             version=version,
             plural=plural,
             namespace=self.namespace,
-            name=name
-        )
+            name=name)
 
     def create_service(self, manifest: dict) -> None:
         """Create a service"""
@@ -196,7 +200,7 @@ class K8ApiHandler():
         )
         time.sleep(1)
         self.log(f"Service {name} up.")
-    
+
     def read_service_status(self, name) -> None:
         resp = self.CoreV1Api.read_namespaced_service_status(
             name=name,

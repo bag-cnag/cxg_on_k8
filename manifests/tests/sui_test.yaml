@@ -44,7 +44,7 @@ spec:
     spec:
       ingressClassName: nginx
       rules:
-      - host: minikube.local
+      - host:
         http:
           paths:
           - backend:
