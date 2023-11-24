@@ -2,6 +2,8 @@
 
 Proof of concept about deploying cellxgene instances on a kubernetes cluster;
 
+->[Technical presentation](https://www.overleaf.com/read/qjpwpfwvkdvw#87e263)
+
 - *Development dependencies:*
 The backend is the [kubernetes python client api](https://github.com/kubernetes-client/python/) + kopf (see below)
 ```bash
