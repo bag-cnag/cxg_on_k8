@@ -69,7 +69,7 @@ pywheel:                                                                        
 	NODE_OPTIONS=--openssl-legacy-provider $(MAKE) build_wheel                           \n\
 	python setup.py bdist_wheel -d wheel\n' >> Makefile
 
-# Build the wheel and install to /inst
+# Build the wheel and install to /inst
 RUN make pywheel && \
     mkdir /inst  && \
     pip install wheel/cellxgene*.whl -t /inst/

@@ -126,6 +126,22 @@ kubectl -n cellxgene logs pod/sui-operator-57666b6944-q4lqt
 
 Once the operator is running you may submit manifests of kind `SingleUserInstance` with apiVersion `cnag.eu/v1`. If the operator is not running you might run into problems to create and especially delete resources of that type.
 
+### Dev: run operator outside the cluster
+
+You can also run the operator outside the cluster.
+
+In that case you will also need to expose the metrics server in a different terminal.
+```bash
+kubectl -n ingress-nginx port-forward svc/metrics 10254:80
+```
+
+Then
+```bash
+kopf run -n {namespace} operator/operator_single-user-instances.py --debug
+```
+
+__Note:__ If an operator is running within the cluster already, then it will have priority over the operator your are running through the command line.
+
 ### Testing
 
 **Dependencies:**

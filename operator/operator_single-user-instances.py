@@ -9,11 +9,12 @@ import kubernetes
 import kopf
 from kopf._cogs.structs.patches import Patch
 from kopf._cogs.clients import api
+''
 
-
-# Number of seconds between refreshes: possible to pass as env var.
+# Number of seconds between refreshes: can pass as env var for unit tests.
 TICK = int(env.get('K8_SUI_OP_TICK', 60))
 LATENCY_METRIC = 'nginx_ingress_controller_ingress_upstream_latency_seconds'
+TIMEOUT_UNVISITED = int(env.get('K8_SUI_OP_TO_UNVIS', 300))
 
 
 class dotdict(dict):
@@ -32,26 +33,26 @@ def incluster() -> bool:
         capture_output=True).stdout
 
 
-@kopf.on.delete('cnag.eu', 'v1', 'singleuserinstances', optional=True)
-async def sui_delete(body, resource, namespace, logger, **_):
-    """Explicitely removes the finalizers in case kopf has a hard time."""
-    name = body.metadata.name
-    logger.info(f"Deletion handler called for SingleUserInstance {name}")
-
-    patched_body = await api.patch(
-        url=resource.get_url(namespace=namespace, name=name),
-        headers={'Content-Type': 'application/merge-patch+json'},
-        payload=Patch({'metadata':{'finalizers': []}}),
-        settings=dotdict({ # OperatorSettings mockup.
-            'networking': dotdict({
-                'request_timeout': TICK,
-                'connect_timeout': TICK,
-                'error_backoffs': 5
-            })
-        }),
-        logger=logger,
+async def sui_self_delete_async(body, logger, motive):
+    """Send deletion request through kubernetes api."""
+    CustomObjectsApi = kubernetes.client.CustomObjectsApi()
+    CustomObjectsApi.delete_namespaced_custom_object(
+        group="cnag.eu",
+        version="v1",
+        name=body.metadata.name,
+        namespace=body.metadata.namespace,
+        plural="singleuserinstances"
     )
-    logger.debug(patched_body)
+    logger.info(
+        f"SingleUserInstance '{body.metadata.name}' marked for deletion "+
+        f"with motive: {motive}. This will also delete children resources.")
+
+
+def lifetime(meta):
+    """Compute instance lifetime."""
+    birth = datetime.fromisoformat(meta.get('creationTimestamp'))
+    now = datetime.now(timezone.utc)
+    return (now-birth).seconds
 
 
 @kopf.on.create('cnag.eu', 'v1', 'singleuserinstances')
@@ -90,18 +91,26 @@ def sui_create(body, spec, logger, namespace, **_):
     logger.info("SingleUserInstance successfully deployed.")
 
 
-async def sui_self_delete_async(body, logger, motive):
-    CustomObjectsApi = kubernetes.client.CustomObjectsApi()
-    CustomObjectsApi.delete_namespaced_custom_object(
-        group="cnag.eu",
-        version="v1",
-        name=body.metadata.name,
-        namespace=body.metadata.namespace,
-        plural="singleuserinstances"
+@kopf.on.delete('cnag.eu', 'v1', 'singleuserinstances', optional=True)
+async def sui_delete_async(body, resource, namespace, logger, **_):
+    """Explicitely removes the finalizers in case kopf has a hard time."""
+    name = body.metadata.name
+    logger.info(f"Deletion handler called for SingleUserInstance {name}")
+
+    patched_body = await api.patch(
+        url=resource.get_url(namespace=namespace, name=name),
+        headers={'Content-Type': 'application/merge-patch+json'},
+        payload=Patch({'metadata':{'finalizers': []}}),
+        settings=dotdict({ # OperatorSettings mockup.
+            'networking': dotdict({
+                'request_timeout': TICK,
+                'connect_timeout': TICK,
+                'error_backoffs': 5
+            })
+        }),
+        logger=logger,
     )
-    logger.info(
-        f"SingleUserInstance: {body.metadata.name} marked for deletion "+
-        f"with motive: {motive}. This will also delete children resources.")
+    logger.debug(patched_body)
 
 
 @kopf.timer('cnag.eu', 'v1', 'singleuserinstances',
@@ -124,7 +133,6 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
             (f'returned status: {r.status_code}.' 
              if r else 'raised an exception.'))
 
-    # metric -> end of lines <=> NaN some time after connection is closed.
     lines = [
         line for line in r.text.split('\n')
         if line and line[0] != '#'
@@ -134,9 +142,13 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
         and LATENCY_METRIC+'_count' not in line
     ]
     logger.debug(f"Upstream latency: {lines}")
-    lines = [line for line in lines if line[-3:] == 'NaN']
 
-    if lines:
+    # metric -> not set if instance is never visited.
+    if not lines and lifetime(meta) > TIMEOUT_UNVISITED:
+        await sui_self_delete_async(body, logger,
+                                    motive="instance requested but not visited")
+    # metric -> end of lines <=> NaN some time after connection is closed.
+    elif [line for line in lines if line[-3:] == 'NaN']:
         await sui_self_delete_async(body, logger,
                                     motive="detected app shutdown")
 
@@ -144,10 +156,6 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
 @kopf.timer('cnag.eu', 'v1', 'singleuserinstances',
              interval=TICK, initial_delay=TICK, idle=TICK)
 async def sui_check_lifespan_async(spec, body, meta, logger, **_):
-    lifespan = spec.get('lifespan')
-    birth = datetime.fromisoformat(meta.get('creationTimestamp'))
-    now = datetime.now(timezone.utc)
-
-    if (now-birth).seconds > lifespan:
+    if lifetime(meta) > spec.get('lifespan'):
         await sui_self_delete_async(body, logger, 
                                     motive="lifespan time exceeded")
