@@ -9,7 +9,7 @@ import kubernetes
 import kopf
 from kopf._cogs.structs.patches import Patch
 from kopf._cogs.clients import api
-''
+
 
 # Number of seconds between refreshes: can pass as env var for unit tests.
 TICK = int(env.get('K8_SUI_OP_TICK', 60))
