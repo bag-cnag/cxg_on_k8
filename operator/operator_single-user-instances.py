@@ -33,18 +33,18 @@ def incluster() -> bool:
         capture_output=True).stdout
 
 
-async def sui_self_delete_async(body, logger, motive):
+async def sui_self_delete_async(meta, logger, motive):
     """Send deletion request through kubernetes api."""
     CustomObjectsApi = kubernetes.client.CustomObjectsApi()
     CustomObjectsApi.delete_namespaced_custom_object(
         group="cnag.eu",
         version="v1",
-        name=body.metadata.name,
-        namespace=body.metadata.namespace,
+        name=meta.name,
+        namespace=meta.namespace,
         plural="singleuserinstances"
     )
     logger.info(
-        f"SingleUserInstance '{body.metadata.name}' marked for deletion "+
+        f"SingleUserInstance '{meta.name}' marked for deletion "+
         f"with motive: {motive}. This will also delete children resources.")
 
 
@@ -57,7 +57,7 @@ def lifetime(meta):
 
 @kopf.on.create('cnag.eu', 'v1', 'singleuserinstances')
 def sui_create(body, spec, logger, namespace, **_):
-    logger.info(f"A handler is called with body: {body}")
+    logger.info(f"Creation handler is called with body: {body}")
 
     # Get subresources
     dep, svc, ing = map(spec.get, ("deployment", "service", "ingress"))
@@ -115,7 +115,7 @@ async def sui_delete_async(body, resource, namespace, logger, **_):
 
 @kopf.timer('cnag.eu', 'v1', 'singleuserinstances',
              interval=TICK, initial_delay=TICK, idle=TICK)
-async def sui_monitor_connection_async(body, meta, logger, **_):
+async def sui_monitor_connection_async(meta, logger, **_):
     # Queries the Ingress-Nginx-Controller metrics server
     # Local testing: kubectl port-forward -n ingress-nginx svc/metrics 10254:80
     metrics_uri = ("http://metrics.ingress-nginx.svc.cluster.local" 
@@ -145,17 +145,17 @@ async def sui_monitor_connection_async(body, meta, logger, **_):
 
     # metric -> not set if instance is never visited.
     if not lines and lifetime(meta) > TIMEOUT_UNVISITED:
-        await sui_self_delete_async(body, logger,
+        await sui_self_delete_async(meta, logger,
                                     motive="instance requested but not visited")
     # metric -> end of lines <=> NaN some time after connection is closed.
     elif [line for line in lines if line[-3:] == 'NaN']:
-        await sui_self_delete_async(body, logger,
+        await sui_self_delete_async(meta, logger,
                                     motive="detected app shutdown")
 
 
 @kopf.timer('cnag.eu', 'v1', 'singleuserinstances',
              interval=TICK, initial_delay=TICK, idle=TICK)
-async def sui_check_lifespan_async(spec, body, meta, logger, **_):
+async def sui_check_lifespan_async(spec, meta, logger, **_):
     if lifetime(meta) > spec.get('lifespan'):
-        await sui_self_delete_async(body, logger, 
+        await sui_self_delete_async(meta, logger, 
                                     motive="lifespan time exceeded")
