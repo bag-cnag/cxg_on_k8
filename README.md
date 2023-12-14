@@ -26,10 +26,19 @@ Kubernetes runs containerized applications.
 
 For the demo, size optimized alpine images are used. To build them:
 
-- *cellxgene* - warning: takes **600+ seconds** 
+- *cellxgene alpine* - warning: takes **1000+ seconds** 
 ```bash
-docker build . -f docker/Dockerfile_cellxgene -t cellxgene:xsmall
+docker build . -f docker/Dockerfile_cellxgene_alpine -t cellxgene:1.1.2-python3.11-alpine3.19
 ```
+
+**OR alternatively**
+
+- *cellxgene slim* 
+```bash
+docker build . -f docker/Dockerfile_cellxgene_slim -t cellxgene:1.1.2-python3.11-slim-bookworm
+```
+
+__Note:__ You may set the `PYTHON__V` and `ALPINE__V` variables in the corresponding dockerfiles to build for different versions. 
 
 - *aws-cli*
 ```bash

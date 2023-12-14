@@ -1,8 +1,16 @@
-FROM python:3.11.5-alpine3.18 AS base
+# ARG ALPINE__V=3.18
+ARG ALPINE__V=3.19
+# ARG PYTHON__V=3.8
+ARG PYTHON__V=3.11
+
+FROM python:${PYTHON__V}-alpine${ALPINE__V} AS base
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-ENV PYTHONPATH=/usr/lib/python3.11/site-packages/:/usr/local/lib/python3.11/site-packages/
+
+ARG PYTHON__V
+ENV NUMPY__V=1.24.4
+ENV PYTHONPATH=/usr/local/lib/python${PYTHON__V}/site-packages/
 
 # ------------------------------------------------------------------------------
 FROM base AS builder
@@ -33,10 +41,10 @@ RUN python3 -m pip install -U pip        && \
 # Numpy needs to be explicitly installed else numba build will fail during
 # installation of the requirements
 RUN ln -s locale.h /usr/include/xlocale.h && \
-    python3 -m pip install numpy==1.24.4
+    python3 -m pip install numpy==$NUMPY__V
 
 # Needed so that numpy shared objects appear in the path
-RUN ln -s /usr/local/lib/python3.11/site-packages/numpy/core/include/numpy /usr/include/numpy
+RUN ln -s ${PYTHONPATH}numpy/core/include/numpy /usr/local/include/numpy
 
 # Fetching sources and applying fixes:
 #  - Upgrade: Flask, boto, s3fs, fssepec, numpy 
@@ -47,12 +55,21 @@ RUN ln -s /usr/local/lib/python3.11/site-packages/numpy/core/include/numpy /usr/
 #  - Add --legacy-peer-deps and --openssl-legacy-provider flags to npm commands in makefiles
 #  - Extra Makefile entry to build a wheel
 WORKDIR /
-RUN git clone --single-branch --depth 1 https://github.com/chanzuckerberg/cellxgene.git
+# RUN git clone --single-branch --depth 1 https://github.com/chanzuckerberg/cellxgene.git
+# ffcf6eb5d842972f2562c359cc2276a0fbbe77d5
+RUN mkdir cellxgene
 WORKDIR /cellxgene
+# Copies a single commit: lighter and fixes the version
+RUN git init && \
+    git remote add origin https://github.com/chanzuckerberg/cellxgene.git  && \
+    git fetch --depth 1 origin ffcf6eb5d842972f2562c359cc2276a0fbbe77d5 && \
+    git checkout FETCH_HEAD
+
 RUN cp ./environment.default.json /environment.default.json
 RUN sed -i 's/np.bool/bool/g'                      server/data_common/data_adaptor.py    && \
-    echo "Werkzeug<=2.3.7"                     >>  server/requirements.txt               && \
+    printf "\nWerkzeug<=2.3.7"              >>     server/requirements.txt               && \
     sed -i '/^boto3>/ s/=.*/=1.27.47/'             server/requirements.txt               && \
+    sed -i '/^anndata/ s/==.*$/==0.9.2/'           server/requirements.txt               && \
     sed -i '/^Flask>/ s/,.*$/,<3.0.0/'             server/requirements.txt               && \
     sed -i '/^numpy>/ s/=.*$/=1.24.4/'             server/requirements.txt               && \
     sed -i '/^fsspec>/ s/,.*$//'                   server/requirements.txt               && \
@@ -94,11 +111,11 @@ COPY --from=builder /usr/lib/libxml2.so.2 /usr/lib/libxml2.so.2
 
 # Dispatch artefacts
 RUN mv /inst/bin/* /usr/local/bin && rm -r /inst/bin/
-RUN mv /inst/* /usr/local/lib/python3.11/site-packages/
+RUN mv /inst/* $PYTHONPATH
 RUN rm -rf /inst
 
 # Relink numpy
-RUN ln -s /usr/local/lib/python3.11/site-packages/numpy/core/include/numpy /usr/local/include/numpy
+RUN ln -s ${PYTHONPATH}numpy/core/include/numpy /usr/local/include/numpy
 
 # ------------------------------------------------------------------------------
 FROM scratch
