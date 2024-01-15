@@ -38,7 +38,12 @@ docker build . -f docker/Dockerfile_cellxgene_alpine -t cellxgene:1.1.2-python3.
 docker build . -f docker/Dockerfile_cellxgene_slim -t cellxgene:1.1.2-python3.11-slim-bookworm
 ```
 
-__Note:__ You may set the `PYTHON__V` and `ALPINE__V` variables in the corresponding dockerfiles to build for different versions. 
+__Note:__ You may set the `PYTHON__V` and `ALPINE__V` variables in the corresponding dockerfiles to build for different versions.
+
+- *cellxgene VIP* - warning: 3x heavier than cellxgene - Supports only python3.8
+```bash
+docker build . -f docker/Dockerfile_cellxgene_VIP_slim -t cellxgene:1.1.2-VIP-python3.8-slim-bookworm
+```
 
 - *aws-cli*
 ```bash
