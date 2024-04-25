@@ -113,7 +113,7 @@ WORKDIR /tmp
 # Get env file
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget && \
-    wget https://gist.githubusercontent.com/Neah-Ko/d260316d77a42c5e7a698a766d8404a0/raw/6196bd8342350d01452500541151fd7e81e66443/VIP_cnag.yml
+    wget https://gist.githubusercontent.com/Neah-Ko/d260316d77a42c5e7a698a766d8404a0/raw/62319545f0a6410cf158feaa79ad14ab044d8967/VIP_cnag.yml
 
 # Create env and install cellxgene and ipykernel in it
 RUN micromamba env create -p /env -y --file VIP_cnag.yml                     && \
