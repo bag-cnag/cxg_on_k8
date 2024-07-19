@@ -22,7 +22,15 @@ kubectl apply -f manifests/namespace_testing.yaml
 
 ## Docker images
 
-Kubernetes runs containerized applications. 
+Kubernetes runs containerized applications.
+
+**minikube**
+For minikube you should preface building phase with the following command
+so that build happens inside. Else you'd have to make your images available through a registry.
+
+```bash
+eval $(minikube docker-env)
+```
 
 For the demo, size optimized alpine images are used. To build them:
 
@@ -78,6 +86,7 @@ Related script variables `SERVICE_ACCOUNT` and `ACCOUNT_TOKEN`
 ### OpenID-Connect client
 For the connection between our OIDC provider (I.e. keycloak) and oauth2-proxy, we configure a client like this:
 
+- **Keycloak v18**
 1. Client -> Create -> enter ClientID
 2. Set Client protocol `openid-connect` -> save
 3. Set Access Type `confidential` -> save
@@ -85,10 +94,22 @@ For the connection between our OIDC provider (I.e. keycloak) and oauth2-proxy, w
 5. Mappers -> Create -> Audience -> name `audience` -> select Client in Included Client Audience
 6. (for groups: optional) Mappers -> Create -> `Group Membership` -> Group Membership -> name `groups` -> Token Claim Name `groups` -> Turn off full group path
 7. Credentials -> Secret lets you set `OAUTH2_CLIENT_ID` and `OAUTH2_CLIENT_SECRET` variables in deployment script.
-8. Populate with users (for groups: create group and add your users to it group)  
+8. Populate with users (for groups: create group and add your users to it group)
 
+- resource: https://carlosedp.medium.com/adding-authentication-to-your-kubernetes-front-end-applications-with-keycloak-6571097be090
 
-**Useful tutorial:** [here](https://freedium.cfd/https://carlosedp.medium.com/adding-authentication-to-your-kubernetes-front-end-applications-with-keycloak-6571097be090)
+- **Keycloak v22**
+1. Client -> Create -> enter ClientID -> Next
+2. Client authentication On, tick everything except OIDC -> Next
+3. `http://*` and `https://*` in Valid Redirect URIs -> Save
+4. Client Scopes (realm) -> Create -> cellxgene-audience + Type Default -> Save
+5. Tab Mapper of Client Scope -> Configure a new mapper -> Audience
+6. name: cellxgene-audience, set ClientID in Included client audience -> Save
+7. Back to your Client -> Client Scopes tab (client) -> add client scope -> cellxgene-audience -> add Default
+
+- resources:
+  - https://dev.to/metacosmos/how-to-configure-audience-in-keycloak-kp4
+  - https://github.com/oauth2-proxy/oauth2-proxy/issues/1931
 
 ### AWS
 For containers to access **s3 bucket** you need to populate the variables within `manifests/secret_aws-cred.yaml` (Note: values must be encoded in base64). Then add it to the cluster. Secrets are defined per namespace, so the entries of this file are duplicated for `cellxgene` and `testing` namespaces. 
@@ -97,6 +118,17 @@ For containers to access **s3 bucket** you need to populate the variables within
 kubectl apply -f manifests/secret_aws-cred.yaml
 ```
 
+### Minikube
+
+For the authentication chain to work, you have to add those entries to your `/etc/hosts`
+of host machine. Replacing those IPs with your configuration.
+
+```bash
+192.168.49.2    minikube.local
+10.10.0.3       keycloak.local host.minikube.internal
+```
+
+Moreover, you should set ``frontend url=http://host.minikube.internal:8080`` in your realms settings.
 
 ##  Operator and SingleUserInstances
 

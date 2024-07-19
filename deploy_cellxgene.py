@@ -22,17 +22,17 @@ HOST_NAME = "minikube.local"
 # Kubernetes Authentication
 CLUSTER_ROOT_CERTIFICATE = "/home/ejodry/.minikube/ca.crt"
 SERVICE_ACCOUNT = 'omicsdm'
-ACCOUNT_TOKEN = ''
+ACCOUNT_TOKEN = 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNBYjFyaHdDU1B5OVBNREdOenUyX3hDeWZGM0Ztb05pMnhIbkJTcUNsajgifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Im9taWNzZG0tdG9rZW4iLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoib21pY3NkbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjRlMTI0NzhmLTNhM2MtNDQwNi04MmNhLTk4YzA4OGZkYmFjMiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0Om9taWNzZG0ifQ.UK9ISX-qOhzzyP1xdZVvJ38BDVfbYkQh1wclpIyXWMix-jQwylgCj0F5mhqNurlcFSaQhSbRCjimsXCsG-URDCnWHlmok1_lj3bU7avdwiGCefcxDBsqpqrym6PxcIAdCSHfm5DA3WQ-CVBPjx6mlNnEvwzCjueLpV94S5jvM-fDvx0-rvnwAGKZH83KjD37x57iyxjsUo00Bl5G_1dm3g5hXzToxnOuA_JV5_1tJLy80rr7pmXXdEsf-PbvIGajch6b2-_Xw29lv5vJod3X6LQjST9Q6HMHY2kFe5vx6rTwznSIoLuVQTxBW9_1AOdf-n4nipyv7aQXIxyErTPmNg'
 
 # Oauth2 config
-KEYCLOAK_ENDPOINT = 'https://sso.cnag.crg.dev/auth'
+KEYCLOAK_ENDPOINT = 'http://host.minikube.internal:8080' # Minikube
 KEYCLOAK_REALM = '3TR'
 
 OAUTH2_IMAGE = 'quay.io/oauth2-proxy/oauth2-proxy:v7.5.1'
 OAUTH2_APP_NAME = 'oauth2-proxy'
 
 OAUTH2_CLIENT_ID = 'cellxgene'
-OAUTH2_CLIENT_SECRET = ''
+OAUTH2_CLIENT_SECRET = 'JS2dEHmzFYaQPrfxdR3XSpQs9lxEQ17Z'
 OAUTH2_NAMESPACE = 'ingress-nginx'
 
 OAUTH2_PORT = 8091
@@ -40,7 +40,7 @@ PROXY_BUFFER_SIZE = '64k'
 
 # Cellxgene config
 CXG_APP_NAME = 'cellxgene'
-CXG_IMAGE = 'cellxgene:xsmall'
+CXG_IMAGE = 'cellxgene:1.1.2-python3.11-slim-bookworm' # 'cellxgene:xsmall'
 AWS_CLI_IMAGE = 'aws_cli:xsmall'
 CXG_PORT = 5005
 
@@ -109,6 +109,7 @@ def oauth2proxy_manifests(name: str):
         },
         "spec": {
             "type": "ClusterIP",
+            "hostNetwork": "true",
             "selector": {"app": name},
             "ports": [{
                 "name": "http",
@@ -126,6 +127,7 @@ def oauth2proxy_manifests(name: str):
             "name": name,
         },
         "spec": {
+            "ingressClassName": "nginx",
             "rules": [{
                 "host": HOST_NAME,
                 "http": {
@@ -209,21 +211,21 @@ def cellxgene_manifests(name: str):
                         "runAsGroup": 1000,
                         "fsGroup": 1000,
                     },
-                    "initContainers": [{
-                        "name": "init-cellxgene",
-                        "image": AWS_CLI_IMAGE,
-                        "command": [
-                            "/bin/sh", "-c", (
-                                f"aws s3 sync {USER_FILES_PATH} /data && "
-                                f"touch /data/annotations.csv /data/gene_sets.csv"
-                            )
-                        ],
-                        "envFrom": [{"secretRef": {"name": "aws-cred-secret"}}],
-                        "volumeMounts": [{
-                            "name": "data",
-                            "mountPath": "/data"
-                        }]
-                    }],
+                    # "initContainers": [{
+                    #     "name": "init-cellxgene",
+                    #     "image": AWS_CLI_IMAGE,
+                    #     "command": [
+                    #         "/bin/sh", "-c", (
+                    #             f"aws s3 sync {USER_FILES_PATH} /data && "
+                    #             f"touch /data/annotations.csv /data/gene_sets.csv"
+                    #         )
+                    #     ],
+                    #     "envFrom": [{"secretRef": {"name": "aws-cred-secret"}}],
+                    #     "volumeMounts": [{
+                    #         "name": "data",
+                    #         "mountPath": "/data"
+                    #     }]
+                    # }],
                     "containers": [{
                         "name": name,
                         "image": CXG_IMAGE,
@@ -370,7 +372,7 @@ def deploy_cellxgene(kah: K8ApiHandler):
     Deploy, expose and route a cellxgene instance with a unique name and url.
     """
     name = CXG_APP_NAME + '-' + str(uuid.uuid4())
-    # py_to_yaml(cellxgene_manifest(name))
+    # py_to_yaml(cellxgene_manifest(name)) # To print out
     kah.create_custom_resource(cellxgene_manifest(name))
 
     print("Done.")

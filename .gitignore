@@ -6,3 +6,4 @@
 *_bak*
 *.pytest_cache*
 *.coverage*
+*.cnag

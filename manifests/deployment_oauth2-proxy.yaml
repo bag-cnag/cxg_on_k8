@@ -22,10 +22,10 @@ spec:
         args:
         - --provider=keycloak-oidc
         - --client-id=cellxgene
-        - --client-secret= # TOFILL
+        - --client-secret=42b0a9ee-edb8-4a51-b316-26bb1b13eccb # RMd2UcSFjCkngPfwuMeTZvELYORoOHnk # TOCHANGE
         - --cookie-secure=false
         - --cookie-secret=dca70153c0ffd68a98696b6957b26e88
-        - --oidc-issuer-url= # TOFILL
+        - --oidc-issuer-url=https://sso.cnag.crg.dev/auth/realms/3TR # http://192.168.49.1:28080/realms/3TR # TOCHANGE
         - --ssl-insecure-skip-verify=true
         - --email-domain=*
         - --insecure-oidc-allow-unverified-email=true

@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 from kubernetes import client
 
@@ -12,8 +13,8 @@ class K8ApiHandler():
         namespace      Active namespace
         debug          Enable/Disable console output
     """
-    def __init__(self, host: str, oidc_client: (str, str), cert: str, namespace: str="default", debug: bool=True) -> None:
-        self.serviceaccount, token = oidc_client
+    def __init__(self, host: str, oidc_client: Tuple[str, str], cert: str, namespace: str="default", debug: bool=True) -> None:
+        serviceaccount, token = oidc_client
         self._config = client.Configuration()
         self.authenticate(host, token, cert)
         self._client = client.ApiClient(self._config)
@@ -141,7 +142,7 @@ class K8ApiHandler():
         self.log(f"Deployment {name} up.")
 
     @staticmethod
-    def get_custom_resource_params(manifest: dict) -> (str, str, str):
+    def get_custom_resource_params(manifest: dict) -> Tuple[str, str, str]:
         group, version = manifest['apiVersion'].split('/')
         plural = str(manifest['kind']).lower() + 's'
         return group, version, plural
